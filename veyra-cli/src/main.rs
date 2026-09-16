@@ -1,6 +1,7 @@
 use std::env;
 use std::process::{Command, ExitCode};
 
+mod doctor;
 mod package_manager;
 mod system;
 
@@ -91,20 +92,8 @@ fn main() -> ExitCode {
         }
 
         Some("doctor") => {
-            println!("Veyra Doctor");
-            println!("Checking pacman...");
-
-            match Command::new("pacman").arg("--version").status() {
-                Ok(status) if status.success() => {
-                    println!("✓ pacman is available.");
-                    ExitCode::SUCCESS
-                }
-
-                _ => {
-                    eprintln!("✗ pacman is not available.");
-                    ExitCode::from(1)
-                }
-            }
+            doctor::check();
+            ExitCode::SUCCESS
         }
 
         Some(command) => {
