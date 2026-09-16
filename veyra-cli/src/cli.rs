@@ -8,6 +8,8 @@ pub enum Command {
     Info,
     Doctor,
     Config,
+    Sync,
+    Download(String, String),
 }
 
 pub fn parse(args: &[String]) -> Result<Command, String> {
@@ -29,6 +31,16 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         Some("doctor") => Ok(Command::Doctor),
 
         Some("config") => Ok(Command::Config),
+
+        Some("sync") => Ok(Command::Sync),
+
+        Some("download") => match (args.get(2), args.get(3)) {
+            (Some(url), Some(output)) => Ok(Command::Download(url.clone(), output.clone())),
+
+            _ => Err("missing URL or output path.
+Usage: veyra download <url> <output>"
+                .to_string()),
+        },
 
         Some(command) => Err(format!("unknown command '{}'", command)),
     }

@@ -4,7 +4,9 @@ use std::process::ExitCode;
 mod cli;
 mod config;
 mod doctor;
+mod downloader;
 mod package_manager;
+mod repository;
 mod system;
 
 const VERSION: &str = "0.1.0";
@@ -91,6 +93,22 @@ fn main() -> ExitCode {
         cli::Command::Config => {
             config::show();
             ExitCode::SUCCESS
+        }
+
+        cli::Command::Sync => {
+            if repository::sync() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            }
+        }
+
+        cli::Command::Download(url, output) => {
+            if downloader::download(&url, &output) {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            }
         }
     }
 }
