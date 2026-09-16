@@ -1,5 +1,5 @@
 use std::env;
-use std::process::{Command, ExitCode};
+use std::process::ExitCode;
 
 mod doctor;
 mod package_manager;
@@ -92,8 +92,11 @@ fn main() -> ExitCode {
         }
 
         Some("doctor") => {
-            doctor::check();
-            ExitCode::SUCCESS
+            if doctor::check() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            }
         }
 
         Some(command) => {
