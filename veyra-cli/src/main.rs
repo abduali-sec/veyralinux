@@ -46,7 +46,7 @@ fn main() -> ExitCode {
         Some("install") => match args.get(2) {
             Some(package) => {
                 println!("Veyra: preparing to install '{}'", package);
-                package_manager::run(&["-S", package])
+                package_manager::install(package)
             }
 
             None => {
@@ -59,7 +59,7 @@ fn main() -> ExitCode {
         Some("remove") => match args.get(2) {
             Some(package) => {
                 println!("Veyra: preparing to remove '{}'", package);
-                package_manager::run(&["-R", package])
+                package_manager::remove(package)
             }
 
             None => {
@@ -70,7 +70,7 @@ fn main() -> ExitCode {
         },
 
         Some("search") => match args.get(2) {
-            Some(package) => package_manager::run(&["-Ss", package]),
+            Some(package) => package_manager::search(package),
 
             None => {
                 eprintln!("Veyra: missing search query.");
@@ -81,7 +81,7 @@ fn main() -> ExitCode {
 
         Some("update") => {
             println!("Veyra: updating system...");
-            package_manager::run(&["-Syu"])
+            package_manager::update()
         }
 
         Some("info") => {
