@@ -7,6 +7,7 @@ pub enum Command {
     Update,
     Info,
     Doctor,
+    Config,
 }
 
 pub fn parse(args: &[String]) -> Result<Command, String> {
@@ -26,6 +27,8 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         Some("info") => Ok(Command::Info),
 
         Some("doctor") => Ok(Command::Doctor),
+
+        Some("config") => Ok(Command::Config),
 
         Some(command) => Err(format!("unknown command '{}'", command)),
     }

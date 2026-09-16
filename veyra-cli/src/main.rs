@@ -2,6 +2,7 @@ use std::env;
 use std::process::ExitCode;
 
 mod cli;
+mod config;
 mod doctor;
 mod package_manager;
 mod system;
@@ -26,6 +27,7 @@ Commands:
     update              Update the system
     info                Show system information
     doctor              Check system health
+    config              Show Veyra configuration
     help                Show this help
     version             Show Veyra version
 "#
@@ -84,6 +86,11 @@ fn main() -> ExitCode {
             } else {
                 ExitCode::from(1)
             }
+        }
+
+        cli::Command::Config => {
+            config::show();
+            ExitCode::SUCCESS
         }
     }
 }
