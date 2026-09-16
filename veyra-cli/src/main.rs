@@ -1,6 +1,7 @@
 use std::env;
 use std::process::ExitCode;
 
+mod cli;
 mod doctor;
 mod package_manager;
 mod system;
@@ -34,75 +35,55 @@ Commands:
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
 
-    match args.get(1).map(String::as_str) {
-        None | Some("help") | Some("--help") | Some("-h") => {
+    let command = match cli::parse(&args) {
+        Ok(command) => command,
+
+        Err(error) => {
+            eprintln!("Veyra: {}", error);
+            eprintln!("Run 'veyra help' for available commands.");
+            return ExitCode::from(2);
+        }
+    };
+
+    match command {
+        cli::Command::Help => {
             print_help();
             ExitCode::SUCCESS
         }
 
-        Some("version") | Some("--version") | Some("-V") => {
+        cli::Command::Version => {
             println!("Veyra {}", VERSION);
             ExitCode::SUCCESS
         }
 
-        Some("install") => match args.get(2) {
-            Some(package) => {
-                println!("Veyra: preparing to install '{}'", package);
-                package_manager::install(package)
-            }
+        cli::Command::Install(package) => {
+            println!("Veyra: preparing to install '{}'", package);
+            package_manager::install(&package)
+        }
 
-            None => {
-                eprintln!("Veyra: missing package name.");
-                eprintln!("Usage: veyra install <package>");
-                ExitCode::from(2)
-            }
-        },
+        cli::Command::Remove(package) => {
+            println!("Veyra: preparing to remove '{}'", package);
+            package_manager::remove(&package)
+        }
 
-        Some("remove") => match args.get(2) {
-            Some(package) => {
-                println!("Veyra: preparing to remove '{}'", package);
-                package_manager::remove(package)
-            }
+        cli::Command::Search(package) => package_manager::search(&package),
 
-            None => {
-                eprintln!("Veyra: missing package name.");
-                eprintln!("Usage: veyra remove <package>");
-                ExitCode::from(2)
-            }
-        },
-
-        Some("search") => match args.get(2) {
-            Some(package) => package_manager::search(package),
-
-            None => {
-                eprintln!("Veyra: missing search query.");
-                eprintln!("Usage: veyra search <package>");
-                ExitCode::from(2)
-            }
-        },
-
-        Some("update") => {
+        cli::Command::Update => {
             println!("Veyra: updating system...");
             package_manager::update()
         }
 
-        Some("info") => {
+        cli::Command::Info => {
             system::info();
             ExitCode::SUCCESS
         }
 
-        Some("doctor") => {
+        cli::Command::Doctor => {
             if doctor::check() {
                 ExitCode::SUCCESS
             } else {
                 ExitCode::from(1)
             }
-        }
-
-        Some(command) => {
-            eprintln!("Veyra: unknown command '{}'", command);
-            eprintln!("Run 'veyra help' for available commands.");
-            ExitCode::from(2)
         }
     }
 }
