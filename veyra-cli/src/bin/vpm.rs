@@ -43,6 +43,20 @@ fn main() -> ExitCode {
             }
         },
 
+        Some("info") => match args.get(2) {
+            Some(package) => {
+                if vpm_api::info(package) {
+                    ExitCode::SUCCESS
+                } else {
+                    ExitCode::from(1)
+                }
+            }
+            None => {
+                eprintln!("vpm: missing package name");
+                ExitCode::from(2)
+            }
+        },
+
         Some("update") => package_manager::update(),
 
         Some("sync") => {
@@ -66,6 +80,7 @@ fn main() -> ExitCode {
             println!("  vpm install <package>");
             println!("  vpm remove <package>");
             println!("  vpm search <package>");
+            println!("  vpm info <package>");
             println!("  vpm update");
             println!("  vpm sync");
             println!("  vpm version");
