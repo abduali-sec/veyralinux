@@ -1,6 +1,10 @@
 use std::env;
 use std::process::ExitCode;
 
+mod vpm_repo {
+    include!("../vpm_repo.rs");
+}
+
 mod vpm_api {
     include!("../vpm_api.rs");
 }
@@ -36,13 +40,29 @@ fn main() -> ExitCode {
         },
 
         Some("search") => match args.get(2) {
-            Some(query) => {
-                if vpm_api::search(query) {
+            Some(query) => match vpm_repo::search(query) {
+                Ok(results) => {
+                    println!();
+                    println!("VEYRA REPOSITORY");
+                    println!("================");
+
+                    if results.is_empty() {
+                        println!("No packages found.");
+                    } else {
+                        for pkg in results {
+                            println!("{:<24} {}\n    {}", pkg.name, pkg.version, pkg.description);
+                        }
+                    }
+
                     ExitCode::SUCCESS
-                } else {
+                }
+
+                Err(error) => {
+                    eprintln!("vpm: {}", error);
                     ExitCode::from(1)
                 }
-            }
+            },
+
             None => {
                 eprintln!("vpm: missing search query");
                 ExitCode::from(2)
@@ -65,11 +85,13 @@ fn main() -> ExitCode {
 
         Some("update") => package_manager::update(),
 
-        Some("sync") => std::process::Command::new("sudo")
-            .args(["pacman", "-Sy"])
-            .status()
-            .map(|status| ExitCode::from(status.code().unwrap_or(1) as u8))
-            .unwrap_or_else(|_| ExitCode::from(1)),
+        Some("sync") => {
+            if vpm_api::repository() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            }
+        }
 
         Some("version") | Some("--version") | Some("-V") => {
             println!("vpm 0.1.0");

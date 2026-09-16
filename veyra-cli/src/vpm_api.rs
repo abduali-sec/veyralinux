@@ -2,6 +2,7 @@ use serde::Deserialize;
 use std::process::Command;
 
 const API_URL: &str = "https://veyra-api.abdualialderson.workers.dev";
+const REPO_URL: &str = "https://raw.githubusercontent.com/abduali-sec/veyra-repo/main";
 
 #[derive(Deserialize)]
 struct SearchResponse {
@@ -62,6 +63,37 @@ pub fn search(query: &str) -> bool {
     }
 }
 
+pub fn info(package: &str) -> bool {
+    let url = format!("{}/packages/{}", API_URL, package);
+
+    match Command::new("curl")
+        .args(["-fsSL", &url])
+        .output()
+    {
+        Ok(output) if output.status.success() => {
+            match serde_json::from_slice::<Package>(&output.stdout) {
+                Ok(pkg) => {
+                    println!("Name: {}", pkg.name);
+                    println!("Version: {}", pkg.version);
+                    println!("Source: {}", pkg.source);
+                    println!("Description: {}", pkg.description);
+                    true
+                }
+
+                Err(error) => {
+                    eprintln!("vpm: invalid API response: {}", error);
+                    false
+                }
+            }
+        }
+
+        _ => {
+            eprintln!("vpm: package '{}' not found", package);
+            false
+        }
+    }
+}
+
 pub fn install(package: &str) -> bool {
     let url = format!("{}/packages/{}", API_URL, package);
 
@@ -100,32 +132,28 @@ pub fn install(package: &str) -> bool {
     }
 }
 
-pub fn info(package: &str) -> bool {
-    let url = format!("{}/packages/{}", API_URL, package);
+pub fn repository() -> bool {
+    let db_url = format!("{}/veyra.db.tar.gz", REPO_URL);
+
+    println!("Veyra Repository");
+    println!("Database: {}", db_url);
 
     match Command::new("curl")
-        .args(["-fsSL", &url])
-        .output()
+        .args(["-fsSL", &db_url, "-o", "/tmp/veyra.db.tar.gz"])
+        .status()
     {
-        Ok(output) if output.status.success() => {
-            match serde_json::from_slice::<Package>(&output.stdout) {
-                Ok(pkg) => {
-                    println!("Name: {}", pkg.name);
-                    println!("Version: {}", pkg.version);
-                    println!("Source: {}", pkg.source);
-                    println!("Description: {}", pkg.description);
-                    true
-                }
-
-                Err(error) => {
-                    eprintln!("vpm: invalid API response: {}", error);
-                    false
-                }
-            }
+        Ok(status) if status.success() => {
+            println!("✓ Repository database downloaded.");
+            true
         }
 
-        _ => {
-            eprintln!("vpm: package '{}' not found", package);
+        Ok(_) => {
+            eprintln!("✗ Failed to download repository database.");
+            false
+        }
+
+        Err(error) => {
+            eprintln!("✗ Failed to start downloader: {}", error);
             false
         }
     }
