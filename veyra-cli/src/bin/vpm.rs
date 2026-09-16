@@ -1,5 +1,5 @@
 use std::env;
-use std::process::ExitCode;
+use std::process::{Command, ExitCode};
 
 mod vpm_api {
     include!("../vpm_api.rs");
@@ -25,33 +25,56 @@ fn main() -> ExitCode {
 
                     println!("VPM → {}", url);
 
-                    match std::process::Command::new("curl")
+                    let downloaded = Command::new("curl")
                         .args(["-fL", &url, "-o", &output])
                         .status()
-                    {
-                        Ok(status) if status.success() => {
-                            println!("✓ Package downloaded.");
+                        .map(|status| status.success())
+                        .unwrap_or(false);
 
-                            match std::process::Command::new("sudo")
-                                .args(["pacman", "-U", &output])
-                                .status()
-                            {
-                                Ok(status) if status.success() => {
-                                    println!("✓ Package installed.");
-                                    ExitCode::SUCCESS
-                                }
+                    if !downloaded {
+                        eprintln!("✗ Package download failed.");
+                        return ExitCode::from(1);
+                    }
 
-                                _ => {
-                                    eprintln!("✗ Package installation failed.");
-                                    ExitCode::from(1)
-                                }
-                            }
+                    println!("✓ Package downloaded.");
+
+                    let actual = match Command::new("sha256sum").arg(&output).output() {
+                        Ok(output) if output.status.success() => {
+                            String::from_utf8_lossy(&output.stdout)
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or("")
+                                .to_string()
                         }
 
                         _ => {
-                            eprintln!("✗ Package download failed.");
-                            ExitCode::from(1)
+                            eprintln!("✗ Failed to calculate SHA256.");
+                            return ExitCode::from(1);
                         }
+                    };
+
+                    println!("SHA256 expected: {}", pkg.sha256);
+                    println!("SHA256 actual:   {}", actual);
+
+                    if pkg.sha256.is_empty() || actual != pkg.sha256 {
+                        eprintln!("✗ SHA256 verification failed.");
+                        return ExitCode::from(1);
+                    }
+
+                    println!("✓ SHA256 verified.");
+
+                    let installed = Command::new("sudo")
+                        .args(["pacman", "-U", &output])
+                        .status()
+                        .map(|status| status.success())
+                        .unwrap_or(false);
+
+                    if installed {
+                        println!("✓ Package installed.");
+                        ExitCode::SUCCESS
+                    } else {
+                        eprintln!("✗ Package installation failed.");
+                        ExitCode::from(1)
                     }
                 }
 

@@ -9,6 +9,7 @@ pub struct RepoPackage {
     pub version: String,
     pub description: String,
     pub filename: String,
+    pub sha256: String,
 }
 
 pub fn find_package(query: &str) -> Result<Option<RepoPackage>, String> {
@@ -45,12 +46,18 @@ pub fn find_package(query: &str) -> Result<Option<RepoPackage>, String> {
             .cloned()
             .unwrap_or_else(|| format!("{}-{}.pkg.tar.zst", name, version));
 
+        let sha256 = fields
+            .get("SHA256SUM")
+            .cloned()
+            .unwrap_or_default();
+
         if name == query {
             return Ok(Some(RepoPackage {
                 name,
                 version,
                 description,
                 filename,
+                sha256,
             }));
         }
     }
@@ -94,6 +101,11 @@ pub fn search(query: &str) -> Result<Vec<RepoPackage>, String> {
             .cloned()
             .unwrap_or_else(|| format!("{}-{}.pkg.tar.zst", name, version));
 
+        let sha256 = fields
+            .get("SHA256SUM")
+            .cloned()
+            .unwrap_or_default();
+
         if name.to_lowercase().contains(&query)
             || description.to_lowercase().contains(&query)
         {
@@ -102,6 +114,7 @@ pub fn search(query: &str) -> Result<Vec<RepoPackage>, String> {
                 version,
                 description,
                 filename,
+                sha256,
             });
         }
     }
