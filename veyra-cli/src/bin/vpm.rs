@@ -1,16 +1,12 @@
 use std::env;
 use std::process::ExitCode;
 
-mod vpm_repo {
-    include!("../vpm_repo.rs");
-}
-
 mod vpm_api {
     include!("../vpm_api.rs");
 }
 
-mod package_manager {
-    include!("../package_manager.rs");
+mod vpm_repo {
+    include!("../vpm_repo.rs");
 }
 
 fn main() -> ExitCode {
@@ -25,19 +21,17 @@ fn main() -> ExitCode {
                     ExitCode::from(1)
                 }
             }
+
             None => {
                 eprintln!("vpm: missing package name");
                 ExitCode::from(2)
             }
         },
 
-        Some("remove") => match args.get(2) {
-            Some(package) => package_manager::remove(package),
-            None => {
-                eprintln!("vpm: missing package name");
-                ExitCode::from(2)
-            }
-        },
+        Some("remove") => {
+            eprintln!("vpm: remove is not implemented in the Veyra backend yet.");
+            ExitCode::from(1)
+        }
 
         Some("search") => match args.get(2) {
             Some(query) => match vpm_repo::search(query) {
@@ -50,7 +44,8 @@ fn main() -> ExitCode {
                         println!("No packages found.");
                     } else {
                         for pkg in results {
-                            println!("{:<24} {}\n    {}", pkg.name, pkg.version, pkg.description);
+                            println!("{:<24} {}", pkg.name, pkg.version);
+                            println!("    {}", pkg.description);
                         }
                     }
 
@@ -77,13 +72,20 @@ fn main() -> ExitCode {
                     ExitCode::from(1)
                 }
             }
+
             None => {
                 eprintln!("vpm: missing package name");
                 ExitCode::from(2)
             }
         },
 
-        Some("update") => package_manager::update(),
+        Some("update") => {
+            if vpm_api::repository() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            }
+        }
 
         Some("sync") => {
             if vpm_api::repository() {
@@ -109,6 +111,7 @@ fn main() -> ExitCode {
             println!("  vpm update");
             println!("  vpm sync");
             println!("  vpm version");
+
             ExitCode::SUCCESS
         }
     }
