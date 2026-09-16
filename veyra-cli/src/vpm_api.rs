@@ -62,6 +62,44 @@ pub fn search(query: &str) -> bool {
     }
 }
 
+pub fn install(package: &str) -> bool {
+    let url = format!("{}/packages/{}", API_URL, package);
+
+    println!("VPM → {}", url);
+
+    match Command::new("curl")
+        .args(["-fsSL", &url])
+        .output()
+    {
+        Ok(output) if output.status.success() => {
+            match serde_json::from_slice::<Package>(&output.stdout) {
+                Ok(pkg) => {
+                    println!();
+                    println!("VEYRA PACKAGE");
+                    println!("=============");
+                    println!("Name: {}", pkg.name);
+                    println!("Version: {}", pkg.version);
+                    println!("Source: {}", pkg.source);
+                    println!("Description: {}", pkg.description);
+                    println!();
+                    println!("Package download/install pipeline is not implemented yet.");
+                    true
+                }
+
+                Err(error) => {
+                    eprintln!("vpm: invalid API response: {}", error);
+                    false
+                }
+            }
+        }
+
+        _ => {
+            eprintln!("vpm: package '{}' not found", package);
+            false
+        }
+    }
+}
+
 pub fn info(package: &str) -> bool {
     let url = format!("{}/packages/{}", API_URL, package);
 

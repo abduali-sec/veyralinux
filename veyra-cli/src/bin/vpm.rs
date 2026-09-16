@@ -14,7 +14,13 @@ fn main() -> ExitCode {
 
     match args.get(1).map(String::as_str) {
         Some("install") => match args.get(2) {
-            Some(package) => package_manager::install(package),
+            Some(package) => {
+                if vpm_api::install(package) {
+                    ExitCode::SUCCESS
+                } else {
+                    ExitCode::from(1)
+                }
+            }
             None => {
                 eprintln!("vpm: missing package name");
                 ExitCode::from(2)
@@ -30,8 +36,8 @@ fn main() -> ExitCode {
         },
 
         Some("search") => match args.get(2) {
-            Some(package) => {
-                if vpm_api::search(package) {
+            Some(query) => {
+                if vpm_api::search(query) {
                     ExitCode::SUCCESS
                 } else {
                     ExitCode::from(1)
@@ -59,14 +65,11 @@ fn main() -> ExitCode {
 
         Some("update") => package_manager::update(),
 
-        Some("sync") => {
-            println!("vpm: syncing package databases...");
-            std::process::Command::new("sudo")
-                .args(["pacman", "-Sy"])
-                .status()
-                .map(|status| ExitCode::from(status.code().unwrap_or(1) as u8))
-                .unwrap_or_else(|_| ExitCode::from(1))
-        }
+        Some("sync") => std::process::Command::new("sudo")
+            .args(["pacman", "-Sy"])
+            .status()
+            .map(|status| ExitCode::from(status.code().unwrap_or(1) as u8))
+            .unwrap_or_else(|_| ExitCode::from(1)),
 
         Some("version") | Some("--version") | Some("-V") => {
             println!("vpm 0.1.0");
