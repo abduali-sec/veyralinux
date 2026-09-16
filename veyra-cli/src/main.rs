@@ -2,6 +2,7 @@ use std::env;
 use std::process::{Command, ExitCode};
 
 mod package_manager;
+mod system;
 
 const VERSION: &str = "0.1.0";
 
@@ -85,9 +86,7 @@ fn main() -> ExitCode {
         }
 
         Some("info") => {
-            println!("Veyra Linux");
-            println!("Version: {}", VERSION);
-            println!("Base: Arch Linux");
+            system::info();
             ExitCode::SUCCESS
         }
 
