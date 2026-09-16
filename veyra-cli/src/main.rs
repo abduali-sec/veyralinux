@@ -1,4 +1,7 @@
 use std::env;
+use std::process::{Command, ExitCode};
+
+mod package_manager;
 
 const VERSION: &str = "0.1.0";
 
@@ -26,72 +29,89 @@ Commands:
     );
 }
 
-fn main() {
+fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
 
     match args.get(1).map(String::as_str) {
         None | Some("help") | Some("--help") | Some("-h") => {
             print_help();
+            ExitCode::SUCCESS
         }
 
         Some("version") | Some("--version") | Some("-V") => {
             println!("Veyra {}", VERSION);
+            ExitCode::SUCCESS
         }
 
-        Some("install") => {
-            match args.get(2) {
-                Some(package) => {
-                    println!("Veyra: installing '{}'", package);
-                }
-                None => {
-                    println!("Veyra: missing package name.");
-                    println!("Usage: veyra install <package>");
-                }
+        Some("install") => match args.get(2) {
+            Some(package) => {
+                println!("Veyra: preparing to install '{}'", package);
+                package_manager::run(&["-S", package])
             }
-        }
 
-        Some("remove") => {
-            match args.get(2) {
-                Some(package) => {
-                    println!("Veyra: removing '{}'", package);
-                }
-                None => {
-                    println!("Veyra: missing package name.");
-                    println!("Usage: veyra remove <package>");
-                }
+            None => {
+                eprintln!("Veyra: missing package name.");
+                eprintln!("Usage: veyra install <package>");
+                ExitCode::from(2)
             }
-        }
+        },
 
-        Some("search") => {
-            match args.get(2) {
-                Some(package) => {
-                    println!("Veyra: searching for '{}'", package);
-                }
-                None => {
-                    println!("Veyra: missing search query.");
-                    println!("Usage: veyra search <package>");
-                }
+        Some("remove") => match args.get(2) {
+            Some(package) => {
+                println!("Veyra: preparing to remove '{}'", package);
+                package_manager::run(&["-R", package])
             }
-        }
+
+            None => {
+                eprintln!("Veyra: missing package name.");
+                eprintln!("Usage: veyra remove <package>");
+                ExitCode::from(2)
+            }
+        },
+
+        Some("search") => match args.get(2) {
+            Some(package) => package_manager::run(&["-Ss", package]),
+
+            None => {
+                eprintln!("Veyra: missing search query.");
+                eprintln!("Usage: veyra search <package>");
+                ExitCode::from(2)
+            }
+        },
 
         Some("update") => {
-            println!("Veyra: checking for system updates...");
+            println!("Veyra: updating system...");
+            package_manager::run(&["-Syu"])
         }
 
         Some("info") => {
             println!("Veyra Linux");
             println!("Version: {}", VERSION);
             println!("Base: Arch Linux");
+            ExitCode::SUCCESS
         }
 
         Some("doctor") => {
             println!("Veyra Doctor");
-            println!("System check started...");
+            println!("Checking pacman...");
+
+            match Command::new("pacman").arg("--version").status() {
+                Ok(status) if status.success() => {
+                    println!("✓ pacman is available.");
+                    ExitCode::SUCCESS
+                }
+
+                _ => {
+                    eprintln!("✗ pacman is not available.");
+                    ExitCode::from(1)
+                }
+            }
         }
 
         Some(command) => {
-            println!("Veyra: unknown command '{}'", command);
-            println!("Run 'veyra help' for available commands.");
+            eprintln!("Veyra: unknown command '{}'", command);
+            eprintln!("Run 'veyra help' for available commands.");
+            ExitCode::from(2)
         }
     }
 }
