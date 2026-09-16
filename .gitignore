@@ -1,3 +1,6 @@
-target/
+veyra-cli/target/
+veyra-repo-git/
+veyra-hello-pkg/
+veyra-repo/
 *.swp
 *.tmp
