@@ -10,7 +10,10 @@ pub fn info() {
     let arch = command_output("uname", &["-m"]);
     println!("Architecture: {}", arch);
 
-    let hostname = command_output("hostname", &[]);
+    let hostname = std::fs::read_to_string("/etc/hostname")
+        .map(|value| value.trim().to_string())
+        .unwrap_or_else(|_| command_output("hostnamectl", &["--static"]));
+
     println!("Hostname: {}", hostname);
 
     let uptime = command_output("uptime", &["-p"]);
