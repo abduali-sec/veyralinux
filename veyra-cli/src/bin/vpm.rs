@@ -1,7 +1,9 @@
 use std::env;
 use std::process::ExitCode;
 
-mod package_manager;
+mod package_manager {
+    include!("../package_manager.rs");
+}
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
