@@ -1,5 +1,6 @@
 use std::process::{Command, ExitCode};
 
+#[allow(dead_code)]
 pub fn search(package: &str) -> ExitCode {
     run_pacman(&["-Ss", package], false)
 }

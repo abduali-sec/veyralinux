@@ -1,6 +1,10 @@
 use std::env;
 use std::process::ExitCode;
 
+mod vpm_api {
+    include!("../vpm_api.rs");
+}
+
 mod package_manager {
     include!("../package_manager.rs");
 }
@@ -26,7 +30,13 @@ fn main() -> ExitCode {
         },
 
         Some("search") => match args.get(2) {
-            Some(package) => package_manager::search(package),
+            Some(package) => {
+                if vpm_api::search(package) {
+                    ExitCode::SUCCESS
+                } else {
+                    ExitCode::from(1)
+                }
+            }
             None => {
                 eprintln!("vpm: missing search query");
                 ExitCode::from(2)
