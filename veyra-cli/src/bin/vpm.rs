@@ -14,13 +14,57 @@ fn main() -> ExitCode {
 
     match args.get(1).map(String::as_str) {
         Some("install") => match args.get(2) {
-            Some(package) => {
-                if vpm_api::install(package) {
-                    ExitCode::SUCCESS
-                } else {
+            Some(package) => match vpm_repo::find_package(package) {
+                Ok(Some(pkg)) => {
+                    let url = format!(
+                        "https://raw.githubusercontent.com/abduali-sec/veyra-repo/main/{}",
+                        pkg.filename
+                    );
+
+                    let output = format!("/tmp/{}", pkg.filename);
+
+                    println!("VPM → {}", url);
+
+                    match std::process::Command::new("curl")
+                        .args(["-fL", &url, "-o", &output])
+                        .status()
+                    {
+                        Ok(status) if status.success() => {
+                            println!("✓ Package downloaded.");
+
+                            match std::process::Command::new("sudo")
+                                .args(["pacman", "-U", &output])
+                                .status()
+                            {
+                                Ok(status) if status.success() => {
+                                    println!("✓ Package installed.");
+                                    ExitCode::SUCCESS
+                                }
+
+                                _ => {
+                                    eprintln!("✗ Package installation failed.");
+                                    ExitCode::from(1)
+                                }
+                            }
+                        }
+
+                        _ => {
+                            eprintln!("✗ Package download failed.");
+                            ExitCode::from(1)
+                        }
+                    }
+                }
+
+                Ok(None) => {
+                    eprintln!("vpm: package '{}' not found", package);
                     ExitCode::from(1)
                 }
-            }
+
+                Err(error) => {
+                    eprintln!("vpm: {}", error);
+                    ExitCode::from(1)
+                }
+            },
 
             None => {
                 eprintln!("vpm: missing package name");
