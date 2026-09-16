@@ -95,10 +95,31 @@ fn main() -> ExitCode {
             }
         },
 
-        Some("remove") => {
-            eprintln!("vpm: remove is not implemented in the Veyra backend yet.");
-            ExitCode::from(1)
-        }
+        Some("remove") => match args.get(2) {
+            Some(package) => {
+                println!("VPM → removing {}", package);
+
+                match Command::new("sudo")
+                    .args(["pacman", "-R", package])
+                    .status()
+                {
+                    Ok(status) if status.success() => {
+                        println!("✓ Package removed.");
+                        ExitCode::SUCCESS
+                    }
+
+                    _ => {
+                        eprintln!("✗ Package removal failed.");
+                        ExitCode::from(1)
+                    }
+                }
+            }
+
+            None => {
+                eprintln!("vpm: missing package name");
+                ExitCode::from(2)
+            }
+        },
 
         Some("search") => match args.get(2) {
             Some(query) => match vpm_repo::search(query) {
