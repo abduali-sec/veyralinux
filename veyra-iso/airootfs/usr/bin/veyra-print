@@ -1,0 +1,127 @@
+#!/bin/bash
+
+set -u
+
+show_status() {
+    clear
+
+    echo "========================================"
+    echo "            VEYRA PRINT"
+    echo "========================================"
+    echo
+
+    echo "=== CUPS ==="
+
+    if systemctl is-active --quiet cups.service 2>/dev/null; then
+        echo "CUPS: running"
+    elif systemctl is-enabled --quiet cups.service 2>/dev/null; then
+        echo "CUPS: enabled, not active"
+    else
+        echo "CUPS: not enabled"
+    fi
+
+    echo
+    echo "=== Printers ==="
+
+    if command -v lpstat >/dev/null 2>&1; then
+        lpstat -p -d 2>/dev/null || echo "No printers configured."
+    else
+        echo "lpstat is unavailable."
+    fi
+
+    echo
+    echo "=== USB / Network Printer Devices ==="
+
+    if command -v lpinfo >/dev/null 2>&1; then
+        lpinfo -v 2>/dev/null || true
+    else
+        echo "lpinfo is unavailable."
+    fi
+
+    echo
+    echo "=== Scanners ==="
+
+    if command -v scanimage >/dev/null 2>&1; then
+        scanimage -L 2>/dev/null || echo "No scanners detected."
+    else
+        echo "scanimage is unavailable."
+    fi
+
+    echo
+    read -rp "Press Enter..."
+}
+
+open_printer_settings() {
+    if command -v system-config-printer >/dev/null 2>&1; then
+        system-config-printer
+    elif command -v systemsettings >/dev/null 2>&1; then
+        systemsettings kcm_printer_manager 2>/dev/null || systemsettings
+    else
+        echo "No graphical printer configuration tool is available."
+        read -rp "Press Enter..."
+    fi
+}
+
+test_printer() {
+    local printer="$1"
+
+    if [ -z "$printer" ]; then
+        echo "Printer name is required."
+        sleep 2
+        return
+    fi
+
+    if lpstat -p "$printer" >/dev/null 2>&1; then
+        echo
+        echo "Sending test page to: $printer"
+        echo
+
+        if lp -d "$printer" /usr/share/cups/data/testprint 2>/dev/null; then
+            echo "✓ Test page submitted."
+        else
+            echo "✗ Failed to submit test page."
+        fi
+    else
+        echo "Printer not found: $printer"
+    fi
+
+    read -rp "Press Enter..."
+}
+
+while true; do
+    CHOICE=$(kdialog \
+        --title "Veyra Print" \
+        --menu "Printing and scanning" \
+        status "Printer / scanner status" \
+        settings "Printer settings" \
+        test "Send printer test page" \
+        terminal "Open CUPS terminal" \
+        close "Close")
+
+    [ "$?" -eq 0 ] || exit 0
+
+    case "$CHOICE" in
+        status)
+            show_status
+            ;;
+        settings)
+            open_printer_settings
+            ;;
+        test)
+            PRINTER="$(lpstat -p 2>/dev/null | awk 'NR==1 {print $2}')"
+
+            if [ -z "$PRINTER" ]; then
+                kdialog --error "No configured printer was found."
+            else
+                test_printer "$PRINTER"
+            fi
+            ;;
+        terminal)
+            konsole -e bash -c \
+                'echo "CUPS:"; lpstat -p -d 2>/dev/null; echo; echo "Devices:"; lpinfo -v 2>/dev/null; echo; echo "Scanners:"; scanimage -L 2>/dev/null; read -rp "Press Enter..."'
+            ;;
+        close)
+            exit 0
+            ;;
+    esac
+done

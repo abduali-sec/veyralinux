@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Veyra Firewall
+GenericName=Firewall
+Comment=Manage Veyra firewall
+Exec=/usr/bin/veyra-firewall
+Icon=security-high
+Terminal=false
+Categories=System;Security;
+StartupNotify=true

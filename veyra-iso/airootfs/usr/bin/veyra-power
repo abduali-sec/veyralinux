@@ -1,0 +1,47 @@
+#!/bin/bash
+
+set -u
+
+if ! command -v powerprofilesctl >/dev/null 2>&1; then
+    kdialog --error "powerprofilesctl не найден. Установите power-profiles-daemon."
+    exit 1
+fi
+
+CURRENT=$(powerprofilesctl get 2>/dev/null || true)
+
+CHOICE=$(kdialog \
+    --title "Veyra Power" \
+    --menu "Текущий профиль: ${CURRENT:-unknown}" \
+    balanced "Balanced — обычная работа" \
+    power-saver "Power Saver — экономия энергии" \
+    performance "Performance — максимальная производительность" \
+    status "Показать состояние" \
+    close "Закрыть")
+
+[ "$?" -eq 0 ] || exit 0
+
+case "$CHOICE" in
+    balanced)
+        powerprofilesctl set balanced
+        kdialog --msgbox "Профиль питания: Balanced"
+        ;;
+    power-saver)
+        powerprofilesctl set power-saver
+        kdialog --msgbox "Профиль питания: Power Saver"
+        ;;
+    performance)
+        if powerprofilesctl list 2>/dev/null | grep -q '^performance$'; then
+            powerprofilesctl set performance
+            kdialog --msgbox "Профиль питания: Performance"
+        else
+            kdialog --sorry "Профиль Performance недоступен на этом оборудовании."
+        fi
+        ;;
+    status)
+        STATUS=$(powerprofilesctl list 2>/dev/null || true)
+        kdialog --textbox <(printf '%s\n' "$STATUS") 600 400
+        ;;
+    close)
+        exit 0
+        ;;
+esac

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+clear
+
+echo "========================================"
+echo "          VEYRA DISK INFORMATION"
+echo "========================================"
+echo
+
+echo "Block devices:"
+echo
+lsblk -e 7 -o NAME,SIZE,TYPE,FSTYPE,FSVER,LABEL,UUID,MODEL,MOUNTPOINTS
+
+echo
+echo "Filesystem usage:"
+echo
+df -hT
+
+echo
+echo "Active swap:"
+echo
+swapon --show 2>/dev/null || true

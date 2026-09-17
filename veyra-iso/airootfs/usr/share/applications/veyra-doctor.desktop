@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Veyra Doctor
+GenericName=System Diagnostics
+Comment=Check Veyra system components
+Exec=konsole -e /usr/bin/veyra-doctor
+Icon=applications-system
+Terminal=false
+Categories=System;Utility;
+StartupNotify=true

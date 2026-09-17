@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Welcome to Veyra
+GenericName=Veyra Welcome Center
+Comment=Welcome to Veyra Linux
+Exec=konsole -e /usr/bin/veyra-welcome
+Icon=system-help
+Terminal=false
+Categories=System;
+StartupNotify=true

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Veyra Update
+GenericName=System Update
+Comment=Synchronize and check Veyra packages
+Exec=konsole -e /usr/bin/veyra-update
+Icon=system-software-update
+Terminal=false
+Categories=System;Settings;
+StartupNotify=true

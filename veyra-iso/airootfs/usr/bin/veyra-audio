@@ -1,0 +1,54 @@
+#!/bin/bash
+
+set -u
+
+clear
+
+echo "========================================"
+echo "            VEYRA AUDIO"
+echo "========================================"
+echo
+
+echo "=== PipeWire ==="
+if command -v pw-cli >/dev/null 2>&1; then
+    pw-cli info 0 2>/dev/null |
+        grep -E 'state:|version:|name:' || true
+else
+    echo "pw-cli is unavailable."
+fi
+
+echo
+echo "=== WirePlumber ==="
+if command -v wpctl >/dev/null 2>&1; then
+    wpctl status 2>/dev/null || true
+else
+    echo "wpctl is unavailable."
+fi
+
+echo
+echo "=== PulseAudio compatibility ==="
+if command -v pactl >/dev/null 2>&1; then
+    pactl info 2>/dev/null |
+        grep -E 'Server Name|Server Version|Default Sink|Default Source' || true
+
+    echo
+    echo "Sinks:"
+    pactl list short sinks 2>/dev/null || true
+
+    echo
+    echo "Sources:"
+    pactl list short sources 2>/dev/null || true
+else
+    echo "pactl is unavailable."
+fi
+
+echo
+echo "=== ALSA ==="
+if command -v aplay >/dev/null 2>&1; then
+    aplay -l 2>/dev/null || true
+else
+    echo "ALSA tools are unavailable."
+fi
+
+echo
+echo "========================================"

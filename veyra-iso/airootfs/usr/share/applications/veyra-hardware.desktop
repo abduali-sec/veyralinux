@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Veyra Hardware
+GenericName=Hardware Information
+Comment=Inspect hardware, storage, temperatures and firmware
+Exec=konsole -e /usr/bin/veyra-hardware
+Icon=computer
+Terminal=false
+Categories=System;Information;
+StartupNotify=true

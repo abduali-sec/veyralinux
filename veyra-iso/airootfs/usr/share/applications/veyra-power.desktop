@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Veyra Power
+GenericName=Power Management
+Comment=Manage power profiles
+Exec=/usr/bin/veyra-power
+Icon=battery
+Terminal=false
+Categories=System;Settings;
+StartupNotify=true

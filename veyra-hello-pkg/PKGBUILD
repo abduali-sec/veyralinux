@@ -1,0 +1,15 @@
+pkgname=veyra-hello
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="First test package for Veyra Linux"
+arch=('x86_64')
+license=('MIT')
+
+package() {
+    install -Dm644 /dev/stdin \
+        "$pkgdir/usr/share/veyra/hello.txt" <<'TEXT'
+Hello from Veyra Linux!
+
+Made in Abduali
+TEXT
+}

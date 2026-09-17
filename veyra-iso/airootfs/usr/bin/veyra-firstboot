@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -u
+
+USER_HOME="$HOME"
+CONFIG_DIR="$USER_HOME/.config"
+VEYRA_CONFIG="$CONFIG_DIR/veyra"
+MARKER="$VEYRA_CONFIG/firstboot-done"
+
+mkdir -p "$CONFIG_DIR"
+mkdir -p "$VEYRA_CONFIG"
+
+if [ ! -f "$MARKER" ]; then
+    echo "Applying Veyra desktop defaults..."
+
+    kwriteconfig6 \
+        --file "$USER_HOME/.config/kdeglobals" \
+        --group General \
+        --key Name \
+        "Veyra"
+
+    kwriteconfig6 \
+        --file "$USER_HOME/.config/kdeglobals" \
+        --group KDE \
+        --key AnimationDurationFactor \
+        "1"
+
+    WALLPAPER="/usr/share/veyra/branding/wallpapers/dark/veyra-dark-2560x1440.png"
+
+    if command -v plasma-apply-wallpaperimage >/dev/null 2>&1 &&
+       [ -f "$WALLPAPER" ]
+    then
+        plasma-apply-wallpaperimage "$WALLPAPER" || true
+    fi
+
+    touch "$MARKER"
+fi
+
+if [ ! -f "$VEYRA_CONFIG/welcome-complete" ]; then
+    exec /usr/bin/veyra-welcome
+fi
+
+exit 0

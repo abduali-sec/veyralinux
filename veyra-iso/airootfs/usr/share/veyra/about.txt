@@ -1,0 +1,29 @@
+VEYRA LINUX
+
+Version: 0.1.0
+Codename: Genesis
+
+Veyra Package Manager: vpm
+
+Made in Abduali
+
+GitHub:
+https://github.com/abduali-sec/veyralinux
+
+Repository:
+https://github.com/abduali-sec/veyra-repo
+
+Packages:
+https://github.com/abduali-sec/veyra-packages
+
+API:
+https://veyra-api.abdualialderson.workers.dev/
+
+Community:
+https://t.me/kivilinux
+
+Support:
+https://t.me/Veyralinuxx
+
+TikTok:
+https://www.tiktok.com/@kivi8984

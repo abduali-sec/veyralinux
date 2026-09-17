@@ -1,0 +1,1161 @@
+#!/bin/bash
+
+set -Eeuo pipefail
+
+VERSION="0.1.0"
+TARGET_MOUNT="/mnt"
+
+TARGET_DISK=""
+ROOT_PART=""
+EFI_PART=""
+ROOT_FS=""
+SWAP_SIZE="0"
+INSTALL_USER=""
+INSTALL_PASSWORD=""
+INSTALL_HOSTNAME=""
+INSTALL_TIMEZONE=""
+INSTALL_LANG=""
+TARGET_BOOT_MODE=""
+INSTALL_MODE=""
+
+cleanup() {
+    sync || true
+    swapoff "$TARGET_MOUNT/swapfile" 2>/dev/null || true
+    umount -R "$TARGET_MOUNT" 2>/dev/null || true
+}
+
+trap cleanup EXIT
+
+die() {
+    echo
+    echo "ERROR: $*"
+    echo
+    exit 1
+}
+
+require_root() {
+    [ "$(id -u)" -eq 0 ] || die "Veyra Installer must run as root."
+}
+
+boot_mode() {
+    if [ -d /sys/firmware/efi ]; then
+        echo "UEFI"
+    else
+        echo "BIOS"
+    fi
+}
+
+check_dependencies() {
+    local missing=()
+
+    for cmd in \
+        lsblk \
+        wipefs \
+        parted \
+        partprobe \
+        udevadm \
+        blkid \
+        findmnt \
+        mount \
+        umount \
+        mkfs.fat \
+        mkfs.btrfs \
+        mkfs.ext4 \
+        btrfs \
+        pacstrap \
+        genfstab \
+        arch-chroot \
+        grub-install \
+        grub-mkconfig \
+        useradd \
+        usermod \
+        chpasswd \
+        systemctl \
+        cfdisk \
+        curl
+    do
+        command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+    done
+
+    if (( ${#missing[@]} )); then
+        echo "Missing installer dependencies:"
+        printf '  %s\n' "${missing[@]}"
+        return 1
+    fi
+
+    return 0
+}
+
+check_network() {
+    echo
+    echo "Checking network connectivity..."
+
+    if curl -fsSL --max-time 8 \
+        https://archlinux.org/ \
+        -o /dev/null
+    then
+        echo "✓ Network is reachable."
+    else
+        die "Network is unavailable. Veyra Installer requires Internet access to install the system."
+    fi
+}
+
+part_path() {
+    local disk="$1"
+    local number="$2"
+
+    if [[ "$disk" =~ [0-9]$ ]]; then
+        printf '%sp%s\n' "$disk" "$number"
+    else
+        printf '%s%s\n' "$disk" "$number"
+    fi
+}
+
+disk_is_mounted() {
+    local device="$1"
+
+    if lsblk -nrpo MOUNTPOINT "$device" 2>/dev/null |
+        grep -q '[^[:space:]]'
+    then
+        return 0
+    fi
+
+    return 1
+}
+
+partition_is_mounted() {
+    local device="$1"
+
+    findmnt -rn -S "$device" >/dev/null 2>&1
+}
+
+list_disks() {
+    echo
+    echo "Available installation disks:"
+    echo
+    lsblk -d -e 7 -o NAME,SIZE,MODEL,TYPE
+    echo
+}
+
+choose_disk() {
+    local disk
+    local type
+
+    while true; do
+        list_disks
+
+        read -rp "Target disk (example: /dev/sdb or /dev/nvme0n1): " disk
+
+        [ -b "$disk" ] || {
+            echo "Invalid block device."
+            continue
+        }
+
+        type="$(lsblk -dnpo TYPE "$disk" 2>/dev/null || true)"
+
+        [ "$type" = "disk" ] || {
+            echo "Selected device is not a physical disk."
+            continue
+        }
+
+        [[ "$disk" != /dev/zram* ]] || {
+            echo "zram cannot be used as an installation disk."
+            continue
+        }
+
+        disk_is_mounted "$disk" && {
+            echo
+            echo "This disk has mounted filesystems."
+            echo "Choose another disk."
+            echo
+            continue
+        }
+
+        TARGET_DISK="$disk"
+        return
+    done
+}
+
+confirm_destroy() {
+    local disk="$1"
+    local confirmation
+
+    echo
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "                 WARNING"
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo
+    echo "ALL DATA ON THIS DISK WILL BE DESTROYED:"
+    echo
+    lsblk "$disk"
+    echo
+    echo "Partitions, filesystems and existing data will be erased."
+    echo
+
+    read -rp "Type exactly: ERASE $disk : " confirmation
+
+    [ "$confirmation" = "ERASE $disk" ] ||
+        die "Installation cancelled."
+}
+
+choose_filesystem() {
+    echo
+    echo "Root filesystem:"
+    echo
+    echo "1) Btrfs"
+    echo "2) ext4"
+    echo
+
+    read -rp "Filesystem [1]: " FS_CHOICE
+    FS_CHOICE="${FS_CHOICE:-1}"
+
+    case "$FS_CHOICE" in
+        1) ROOT_FS="btrfs" ;;
+        2) ROOT_FS="ext4" ;;
+        *) die "Invalid filesystem." ;;
+    esac
+}
+
+choose_swap() {
+    echo
+    echo "Swap:"
+    echo
+    echo "0) No swapfile"
+    echo "1) 4 GiB"
+    echo "2) 8 GiB"
+    echo "3) 16 GiB"
+    echo
+
+    read -rp "Swap size [2]: " SWAP_CHOICE
+    SWAP_CHOICE="${SWAP_CHOICE:-2}"
+
+    case "$SWAP_CHOICE" in
+        0) SWAP_SIZE="0" ;;
+        1) SWAP_SIZE="4G" ;;
+        2) SWAP_SIZE="8G" ;;
+        3) SWAP_SIZE="16G" ;;
+        *) die "Invalid swap selection." ;;
+    esac
+}
+
+ask_user_settings() {
+    echo
+    echo "========================================"
+    echo "           Veyra User Setup"
+    echo "========================================"
+    echo
+
+    while true; do
+        read -rp "Username: " INSTALL_USER
+
+        if [[ "$INSTALL_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+            break
+        fi
+
+        echo "Invalid username."
+    done
+
+    while true; do
+        read -rsp "Password: " INSTALL_PASSWORD
+        echo
+
+        read -rsp "Confirm password: " INSTALL_PASSWORD_CONFIRM
+        echo
+
+        if [ -n "$INSTALL_PASSWORD" ] &&
+           [ "$INSTALL_PASSWORD" = "$INSTALL_PASSWORD_CONFIRM" ] &&
+           [ "${#INSTALL_PASSWORD}" -ge 8 ]
+        then
+            break
+        fi
+
+        echo "Passwords must match and contain at least 8 characters."
+    done
+
+    read -rp "Hostname [veyra]: " INSTALL_HOSTNAME
+    INSTALL_HOSTNAME="${INSTALL_HOSTNAME:-veyra}"
+
+    [[ "$INSTALL_HOSTNAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]{0,62}$ ]] ||
+        die "Invalid hostname."
+
+    read -rp "Timezone [UTC]: " INSTALL_TIMEZONE
+    INSTALL_TIMEZONE="${INSTALL_TIMEZONE:-UTC}"
+
+    [ -e "/usr/share/zoneinfo/$INSTALL_TIMEZONE" ] ||
+        die "Timezone does not exist: $INSTALL_TIMEZONE"
+
+    echo
+    echo "Language:"
+    echo "1) en_US.UTF-8"
+    echo "2) ru_RU.UTF-8"
+    echo "3) kk_KZ.UTF-8"
+    echo
+
+    read -rp "Select language [1]: " LANG_CHOICE
+    LANG_CHOICE="${LANG_CHOICE:-1}"
+
+    case "$LANG_CHOICE" in
+        1) INSTALL_LANG="en_US.UTF-8" ;;
+        2) INSTALL_LANG="ru_RU.UTF-8" ;;
+        3) INSTALL_LANG="kk_KZ.UTF-8" ;;
+        *) die "Invalid language." ;;
+    esac
+}
+
+make_partitions() {
+    local disk="$1"
+
+    EFI_PART=""
+    ROOT_PART=""
+
+    echo
+    echo "Creating GPT partition table..."
+
+    wipefs -af "$disk"
+    parted -s "$disk" mklabel gpt
+
+    if [ "$TARGET_BOOT_MODE" = "UEFI" ]; then
+        parted -s "$disk" \
+            mkpart EFI fat32 1MiB 1025MiB \
+            set 1 esp on \
+            mkpart VEYRA "$ROOT_FS" 1025MiB 100%
+
+        EFI_PART="$(part_path "$disk" 1)"
+        ROOT_PART="$(part_path "$disk" 2)"
+    else
+        parted -s "$disk" \
+            mkpart BIOS 1MiB 3MiB \
+            set 1 bios_grub on \
+            mkpart VEYRA "$ROOT_FS" 3MiB 100%
+
+        ROOT_PART="$(part_path "$disk" 2)"
+    fi
+
+    partprobe "$disk"
+    udevadm settle
+    sleep 2
+}
+
+format_partitions() {
+    echo
+    echo "Formatting partitions..."
+
+    if [ -n "$EFI_PART" ]; then
+        mkfs.fat -F32 -n VEYRA_EFI "$EFI_PART"
+    fi
+
+    case "$ROOT_FS" in
+        btrfs)
+            mkfs.btrfs -f -L VEYRA "$ROOT_PART"
+            ;;
+        ext4)
+            mkfs.ext4 -F -L VEYRA "$ROOT_PART"
+            ;;
+        *)
+            die "Unsupported filesystem."
+            ;;
+    esac
+}
+
+mount_btrfs_new() {
+    mkdir -p "$TARGET_MOUNT"
+
+    mount "$ROOT_PART" "$TARGET_MOUNT"
+
+    btrfs subvolume create "$TARGET_MOUNT/@"
+    btrfs subvolume create "$TARGET_MOUNT/@home"
+
+    umount "$TARGET_MOUNT"
+
+    mount \
+        -o subvol=@,compress=zstd:3 \
+        "$ROOT_PART" \
+        "$TARGET_MOUNT"
+
+    mkdir -p "$TARGET_MOUNT/home"
+
+    mount \
+        -o subvol=@home,compress=zstd:3 \
+        "$ROOT_PART" \
+        "$TARGET_MOUNT/home"
+}
+
+mount_btrfs_existing() {
+    local has_root=0
+    local has_home=0
+    local path
+
+    mkdir -p "$TARGET_MOUNT"
+
+    mount "$ROOT_PART" "$TARGET_MOUNT"
+
+    while read -r path; do
+        case "$path" in
+            @)     has_root=1 ;;
+            @home) has_home=1 ;;
+        esac
+    done < <(
+        btrfs subvolume list "$TARGET_MOUNT" 2>/dev/null |
+        sed -n 's/.*path //p'
+    )
+
+    umount "$TARGET_MOUNT"
+
+    if [ "$has_root" -eq 1 ]; then
+        mount \
+            -o subvol=@,compress=zstd:3 \
+            "$ROOT_PART" \
+            "$TARGET_MOUNT"
+    else
+        mount "$ROOT_PART" "$TARGET_MOUNT"
+    fi
+
+    mkdir -p "$TARGET_MOUNT/home"
+
+    if [ "$has_home" -eq 1 ]; then
+        mount \
+            -o subvol=@home,compress=zstd:3 \
+            "$ROOT_PART" \
+            "$TARGET_MOUNT/home"
+    fi
+}
+
+mount_ext4() {
+    mkdir -p "$TARGET_MOUNT"
+    mount "$ROOT_PART" "$TARGET_MOUNT"
+}
+
+mount_target_new() {
+    echo
+    echo "Mounting new Veyra filesystem..."
+
+    if [ "$ROOT_FS" = "btrfs" ]; then
+        mount_btrfs_new
+    else
+        mount_ext4
+    fi
+
+    mkdir -p "$TARGET_MOUNT/boot"
+
+    if [ -n "$EFI_PART" ]; then
+        mount "$EFI_PART" "$TARGET_MOUNT/boot"
+    fi
+}
+
+mount_target_existing() {
+    echo
+    echo "Mounting existing Veyra filesystem..."
+
+    if [ "$ROOT_FS" = "btrfs" ]; then
+        mount_btrfs_existing
+    else
+        mount_ext4
+    fi
+
+    mkdir -p "$TARGET_MOUNT/boot"
+
+    if [ -n "$EFI_PART" ]; then
+        mount "$EFI_PART" "$TARGET_MOUNT/boot"
+    fi
+}
+
+install_packages() {
+    local packages=(
+        base
+        base-devel
+        linux
+        linux-firmware
+        mkinitcpio
+        btrfs-progs
+        e2fsprogs
+        dosfstools
+        grub
+        efibootmgr
+        networkmanager
+        sudo
+        sddm
+        plasma-desktop
+        plasma-workspace
+        plasma-nm
+        plasma-pa
+        systemsettings
+        kdialog
+        dolphin
+        konsole
+        kate
+        ark
+        gwenview
+        spectacle
+        kcalc
+        filelight
+        plasma-systemmonitor
+        plasma-firewall
+        firefox
+        pipewire
+        pipewire-audio
+        pipewire-alsa
+        pipewire-jack
+        wireplumber
+        pavucontrol
+        bluez
+        bluez-utils
+        cups
+        cups-filters
+        sane
+        simple-scan
+        system-config-printer
+        chrony
+        firewalld
+        power-profiles-daemon
+        upower
+        fwupd
+        fastfetch
+        smartmontools
+        nvme-cli
+        lm_sensors
+        pciutils
+        usbutils
+        btop
+        htop
+        tree
+        lsof
+        curl
+        wget
+        git
+        rsync
+        zsh
+        nano
+        vim
+        unzip
+        zip
+        tar
+        gzip
+        zstd
+        xdg-user-dirs
+        xdg-utils
+        shared-mime-info
+        bash-completion
+        man-db
+        man-pages
+        ntfs-3g
+        exfatprogs
+        xfsprogs
+        nfs-utils
+        cifs-utils
+        7zip
+        bind
+        libvirt
+        virt-manager
+        qemu-desktop
+    )
+
+    echo
+    echo "Installing Veyra system packages..."
+    echo
+
+    pacstrap -K "$TARGET_MOUNT" "${packages[@]}"
+}
+
+configure_system() {
+    echo
+    echo "Configuring Veyra system..."
+
+    genfstab -U "$TARGET_MOUNT" > "$TARGET_MOUNT/etc/fstab"
+
+    arch-chroot "$TARGET_MOUNT" \
+        ln -sf \
+        "/usr/share/zoneinfo/$INSTALL_TIMEZONE" \
+        /etc/localtime
+
+    arch-chroot "$TARGET_MOUNT" hwclock --systohc
+
+    cat > "$TARGET_MOUNT/etc/locale.gen" <<'EOF_LOCALES'
+en_US.UTF-8 UTF-8
+ru_RU.UTF-8 UTF-8
+kk_KZ.UTF-8 UTF-8
+EOF_LOCALES
+
+    arch-chroot "$TARGET_MOUNT" locale-gen
+
+    printf 'LANG=%s\n' "$INSTALL_LANG" \
+        > "$TARGET_MOUNT/etc/locale.conf"
+
+    printf '%s\n' "$INSTALL_HOSTNAME" \
+        > "$TARGET_MOUNT/etc/hostname"
+
+    cat > "$TARGET_MOUNT/etc/hosts" <<EOF_HOSTS
+127.0.0.1 localhost
+::1       localhost
+127.0.1.1 $INSTALL_HOSTNAME.localdomain $INSTALL_HOSTNAME
+EOF_HOSTS
+
+    cat > "$TARGET_MOUNT/etc/issue" <<'EOF_ISSUE'
+Veyra Linux
+Made in Abduali
+EOF_ISSUE
+
+    if arch-chroot "$TARGET_MOUNT" id "$INSTALL_USER" >/dev/null 2>&1; then
+        arch-chroot "$TARGET_MOUNT" \
+            usermod -aG wheel,libvirt "$INSTALL_USER"
+    else
+        arch-chroot "$TARGET_MOUNT" \
+            useradd -m \
+            -G wheel,libvirt \
+            -s /bin/bash \
+            "$INSTALL_USER"
+    fi
+
+    printf '%s:%s\n' \
+        "$INSTALL_USER" \
+        "$INSTALL_PASSWORD" |
+        arch-chroot "$TARGET_MOUNT" chpasswd
+
+    cat > "$TARGET_MOUNT/etc/sudoers.d/10-wheel" <<'EOF_SUDO'
+%wheel ALL=(ALL:ALL) ALL
+EOF_SUDO
+
+    chmod 440 "$TARGET_MOUNT/etc/sudoers.d/10-wheel"
+
+    arch-chroot "$TARGET_MOUNT" \
+        visudo -cf /etc/sudoers >/dev/null
+
+    cat > "$TARGET_MOUNT/etc/default/grub" <<'EOF_GRUB'
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=3
+GRUB_TIMEOUT_STYLE=menu
+GRUB_DISTRIBUTOR="Veyra"
+GRUB_CMDLINE_LINUX_DEFAULT="quiet"
+GRUB_CMDLINE_LINUX=""
+EOF_GRUB
+
+    local service
+
+    for service in \
+        NetworkManager.service \
+        sddm.service \
+        bluetooth.service \
+        cups.service \
+        chronyd.service \
+        firewalld.service \
+        power-profiles-daemon.service \
+        libvirtd.service \
+        fstrim.timer
+    do
+        arch-chroot "$TARGET_MOUNT" \
+            systemctl enable "$service"
+    done
+
+    mkdir -p "$TARGET_MOUNT/etc/firewalld"
+
+    if [ -f /etc/firewalld/firewalld.conf ]; then
+        cp -a \
+            /etc/firewalld/firewalld.conf \
+            "$TARGET_MOUNT/etc/firewalld/firewalld.conf"
+    fi
+}
+
+install_swapfile() {
+    [ "$SWAP_SIZE" = "0" ] && return
+
+    echo
+    echo "Configuring ${SWAP_SIZE} swapfile..."
+
+    if [ -f "$TARGET_MOUNT/swapfile" ]; then
+        echo "Existing /swapfile detected; keeping it."
+    else
+        if [ "$ROOT_FS" = "btrfs" ]; then
+            arch-chroot "$TARGET_MOUNT" \
+                btrfs filesystem mkswapfile \
+                --size "$SWAP_SIZE" \
+                --uuid clear \
+                /swapfile
+        else
+            arch-chroot "$TARGET_MOUNT" \
+                fallocate -l "$SWAP_SIZE" /swapfile
+
+            arch-chroot "$TARGET_MOUNT" \
+                chmod 600 /swapfile
+
+            arch-chroot "$TARGET_MOUNT" \
+                mkswap /swapfile
+        fi
+    fi
+
+    chmod 600 "$TARGET_MOUNT/swapfile"
+
+    if ! grep -qE '^[[:space:]]*/swapfile[[:space:]]' \
+        "$TARGET_MOUNT/etc/fstab"
+    then
+        echo "/swapfile none swap defaults 0 0" \
+            >> "$TARGET_MOUNT/etc/fstab"
+    fi
+}
+
+copy_tree() {
+    local src="$1"
+    local dst="$2"
+
+    [ -e "$src" ] || return 0
+
+    mkdir -p "$dst"
+    cp -a "$src"/. "$dst"/
+}
+
+install_veyra_layer() {
+    echo
+    echo "Installing Veyra components..."
+
+    if [ -x /usr/bin/vpm ]; then
+        install -Dm755 \
+            /usr/bin/vpm \
+            "$TARGET_MOUNT/usr/bin/vpm"
+    fi
+
+    for source in /usr/bin/veyra-*; do
+        [ -f "$source" ] || continue
+
+        install -Dm755 \
+            "$source" \
+            "$TARGET_MOUNT/usr/bin/$(basename "$source")"
+    done
+
+    copy_tree \
+        /etc/veyra \
+        "$TARGET_MOUNT/etc/veyra"
+
+    copy_tree \
+        /etc/fastfetch \
+        "$TARGET_MOUNT/etc/fastfetch"
+
+    copy_tree \
+        /etc/sddm.conf.d \
+        "$TARGET_MOUNT/etc/sddm.conf.d"
+
+    copy_tree \
+        /usr/share/veyra \
+        "$TARGET_MOUNT/usr/share/veyra"
+
+    copy_tree \
+        /usr/share/icons/veyra \
+        "$TARGET_MOUNT/usr/share/icons/veyra"
+
+    copy_tree \
+        /usr/share/backgrounds/veyra \
+        "$TARGET_MOUNT/usr/share/backgrounds/veyra"
+
+    mkdir -p "$TARGET_MOUNT/usr/share/applications"
+
+    for desktop in /usr/share/applications/veyra-*.desktop; do
+        [ -f "$desktop" ] || continue
+
+        cp -a \
+            "$desktop" \
+            "$TARGET_MOUNT/usr/share/applications/"
+    done
+
+    if [ -f /etc/motd ]; then
+        install -Dm644 \
+            /etc/motd \
+            "$TARGET_MOUNT/etc/motd"
+    fi
+
+    cat > "$TARGET_MOUNT/etc/os-release" <<'EOF_OS'
+NAME="Veyra Linux"
+PRETTY_NAME="Veyra Linux"
+ID=veyra
+VERSION="0.1.0"
+VERSION_CODENAME="Genesis"
+HOME_URL="https://github.com/abduali-sec/veyralinux"
+DOCUMENTATION_URL="https://github.com/abduali-sec/veyralinux"
+SUPPORT_URL="https://t.me/Veyralinuxx"
+BUG_REPORT_URL="https://github.com/abduali-sec/veyralinux"
+EOF_OS
+}
+
+finish_user_home() {
+    local home="/home/$INSTALL_USER"
+
+    mkdir -p "$TARGET_MOUNT$home"
+
+    if [ -d /etc/skel ]; then
+        cp -a /etc/skel/. \
+            "$TARGET_MOUNT$home/"
+    fi
+
+    arch-chroot "$TARGET_MOUNT" \
+        chown -R \
+        "$INSTALL_USER:$INSTALL_USER" \
+        "$home"
+
+    if arch-chroot "$TARGET_MOUNT" \
+        command -v xdg-user-dirs-update >/dev/null 2>&1
+    then
+        arch-chroot "$TARGET_MOUNT" \
+            runuser -u "$INSTALL_USER" -- \
+            env HOME="$home" \
+            xdg-user-dirs-update || true
+    fi
+}
+
+install_bootloader() {
+    echo
+    echo "Installing Veyra bootloader..."
+
+    if [ "$TARGET_BOOT_MODE" = "UEFI" ]; then
+        [ -n "$EFI_PART" ] ||
+            die "UEFI installation requires an EFI partition."
+
+        [ -d /sys/firmware/efi ] ||
+            die "Live system was not booted in UEFI mode. Reboot the installer in UEFI mode."
+
+        arch-chroot "$TARGET_MOUNT" \
+            grub-install \
+            --target=x86_64-efi \
+            --efi-directory=/boot \
+            --bootloader-id=Veyra \
+            --recheck
+    else
+        [ -n "$TARGET_DISK" ] ||
+            die "BIOS installation requires a target disk."
+
+        arch-chroot "$TARGET_MOUNT" \
+            grub-install \
+            --target=i386-pc \
+            --recheck \
+            "$TARGET_DISK"
+    fi
+
+    arch-chroot "$TARGET_MOUNT" \
+        grub-mkconfig \
+        -o /boot/grub/grub.cfg
+}
+
+show_plan() {
+    echo
+    echo "========================================"
+    echo "           VEYRA INSTALL PLAN"
+    echo "========================================"
+    echo
+    echo "Disk      : $TARGET_DISK"
+    echo "Boot      : $TARGET_BOOT_MODE"
+    echo "Filesystem: $ROOT_FS"
+    echo "Swap      : $SWAP_SIZE"
+    echo "User      : $INSTALL_USER"
+    echo "Hostname  : $INSTALL_HOSTNAME"
+    echo "Language  : $INSTALL_LANG"
+    echo "Timezone  : $INSTALL_TIMEZONE"
+    echo
+}
+
+easy_install() {
+    INSTALL_MODE="easy"
+    TARGET_BOOT_MODE="$(boot_mode)"
+
+    choose_disk
+    choose_filesystem
+    choose_swap
+    ask_user_settings
+
+    show_plan
+    confirm_destroy "$TARGET_DISK"
+
+    check_network
+
+    make_partitions "$TARGET_DISK"
+    format_partitions
+    mount_target_new
+    install_packages
+    configure_system
+    install_swapfile
+    install_veyra_layer
+    finish_user_home
+    install_bootloader
+    unmount_target
+
+    echo
+    echo "========================================"
+    echo "       VEYRA INSTALLATION COMPLETE"
+    echo "========================================"
+    echo
+    echo "User    : $INSTALL_USER"
+    echo "System  : Veyra Linux"
+    echo "Desktop : KDE Plasma"
+    echo "Boot    : $TARGET_BOOT_MODE"
+    echo
+    echo "Remove installation media and reboot."
+}
+
+advanced_install() {
+    INSTALL_MODE="advanced"
+
+    require_root
+    list_disks
+
+    read -rp "Disk for partitioning: " TARGET_DISK
+
+    [ -b "$TARGET_DISK" ] ||
+        die "Invalid block device."
+
+    [ "$(lsblk -dnpo TYPE "$TARGET_DISK")" = "disk" ] ||
+        die "Selected device is not a physical disk."
+
+    disk_is_mounted "$TARGET_DISK" &&
+        die "Disk has mounted filesystems."
+
+    echo
+    echo "Opening partition editor..."
+    echo
+    echo "Create:"
+    echo "  EFI partition (FAT32) for UEFI"
+    echo "  Root partition for Veyra"
+    echo
+    echo "The selected root partition will be reformatted."
+    echo
+
+    cfdisk "$TARGET_DISK"
+
+    partprobe "$TARGET_DISK"
+    udevadm settle
+    sleep 2
+
+    echo
+    read -rp "Root partition: " ROOT_PART
+
+    [ -b "$ROOT_PART" ] ||
+        die "Root partition not found."
+
+    read -rp "EFI partition (leave empty for BIOS): " EFI_PART
+
+    if [ -n "$EFI_PART" ]; then
+        TARGET_BOOT_MODE="UEFI"
+
+        [ -b "$EFI_PART" ] ||
+            die "EFI partition not found."
+
+        [ "$(lsblk -dnpo TYPE "$EFI_PART")" = "part" ] ||
+            die "Invalid EFI partition."
+    else
+        TARGET_BOOT_MODE="BIOS"
+    fi
+
+    choose_filesystem
+    choose_swap
+    ask_user_settings
+
+    show_plan
+
+    echo
+    read -rp "Type exactly INSTALL to continue: " confirmation
+
+    [ "$confirmation" = "INSTALL" ] ||
+        die "Installation cancelled."
+
+    check_network
+
+    format_partitions_for_advanced() {
+        if [ "$TARGET_BOOT_MODE" = "UEFI" ]; then
+            mkfs.fat -F32 -n VEYRA_EFI "$EFI_PART"
+        fi
+
+        if [ "$ROOT_FS" = "btrfs" ]; then
+            mkfs.btrfs -f -L VEYRA "$ROOT_PART"
+        else
+            mkfs.ext4 -F -L VEYRA "$ROOT_PART"
+        fi
+    }
+
+    format_partitions_for_advanced
+
+    mount_target_new
+
+    install_packages
+    configure_system
+    install_swapfile
+    install_veyra_layer
+    finish_user_home
+    install_bootloader
+    unmount_target
+
+    echo
+    echo "Veyra installation complete."
+}
+
+manual_install() {
+    INSTALL_MODE="manual"
+
+    require_root
+
+    echo
+    echo "========================================"
+    echo "           VEYRA MANUAL INSTALL"
+    echo "========================================"
+    echo
+    echo "Manual Install does NOT format the root partition."
+    echo
+
+    read -rp "Existing root partition: " ROOT_PART
+
+    [ -b "$ROOT_PART" ] ||
+        die "Root partition not found."
+
+    partition_is_mounted "$ROOT_PART" &&
+        die "Root partition is already mounted."
+
+    DETECTED_FS="$(blkid -o value -s TYPE "$ROOT_PART" 2>/dev/null || true)"
+
+    echo
+    echo "Detected filesystem: ${DETECTED_FS:-unknown}"
+
+    if [ "$DETECTED_FS" = "btrfs" ] ||
+       [ "$DETECTED_FS" = "ext4" ]
+    then
+        ROOT_FS="$DETECTED_FS"
+
+        read -rp "Use $ROOT_FS? [Y/n]: " fs_confirm
+        fs_confirm="${fs_confirm:-Y}"
+
+        [[ "$fs_confirm" =~ ^[Yy]$ ]] ||
+            choose_filesystem
+    else
+        choose_filesystem
+    fi
+
+    read -rp "EFI partition (empty for BIOS): " EFI_PART
+
+    if [ -n "$EFI_PART" ]; then
+        TARGET_BOOT_MODE="UEFI"
+
+        [ -b "$EFI_PART" ] ||
+            die "EFI partition not found."
+
+        partition_is_mounted "$EFI_PART" &&
+            die "EFI partition is already mounted."
+    else
+        TARGET_BOOT_MODE="BIOS"
+    fi
+
+    choose_swap
+    ask_user_settings
+
+    show_plan
+
+    echo
+    echo "Existing root filesystem will NOT be formatted."
+    echo
+
+    read -rp "Type exactly INSTALL to continue: " confirmation
+
+    [ "$confirmation" = "INSTALL" ] ||
+        die "Installation cancelled."
+
+    check_network
+
+    mount_target_existing
+
+    install_packages
+    configure_system
+    install_swapfile
+    install_veyra_layer
+    finish_user_home
+    install_bootloader
+    unmount_target
+
+    echo
+    echo "Veyra installation complete."
+}
+
+show_check() {
+    echo "Veyra Installer $VERSION"
+    echo
+    echo "Checking installer dependencies..."
+    echo
+
+    if check_dependencies; then
+        echo "✓ All installer dependencies are available."
+        echo "✓ Boot mode: $(boot_mode)"
+        return 0
+    fi
+
+    echo
+    echo "✗ Some dependencies are missing."
+    return 1
+}
+
+main_menu() {
+    require_root
+
+    while true; do
+        clear
+
+        echo "========================================"
+        echo "             VEYRA INSTALLER"
+        echo "========================================"
+        echo "              Made in Abduali"
+        echo
+        echo "Version : $VERSION"
+        echo "Boot    : $(boot_mode)"
+        echo
+        echo "1) Easy Install"
+        echo "2) Advanced Install"
+        echo "3) Manual Install"
+        echo "4) Installer Check"
+        echo "5) Exit"
+        echo
+
+        read -rp "Select: " choice
+
+        case "$choice" in
+            1)
+                easy_install
+                read -rp "Press Enter..."
+                ;;
+
+            2)
+                advanced_install
+                read -rp "Press Enter..."
+                ;;
+
+            3)
+                manual_install
+                read -rp "Press Enter..."
+                ;;
+
+            4)
+                show_check || true
+                read -rp "Press Enter..."
+                ;;
+
+            5)
+                exit 0
+                ;;
+
+            *)
+                echo "Invalid selection."
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+case "${1:-}" in
+    --check)
+        require_root
+        show_check
+        ;;
+
+    --version)
+        echo "Veyra Installer $VERSION"
+        ;;
+
+    "")
+        main_menu
+        ;;
+
+    *)
+        echo "Usage:"
+        echo "  veyra-installer"
+        echo "  veyra-installer --check"
+        echo "  veyra-installer --version"
+        exit 2
+        ;;
+esac

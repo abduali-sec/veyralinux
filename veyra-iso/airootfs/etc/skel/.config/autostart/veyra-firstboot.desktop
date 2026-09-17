@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Veyra First Boot
+Comment=Initialize Veyra desktop and first-time setup
+Exec=/usr/bin/veyra-firstboot
+OnlyShowIn=KDE;
+X-KDE-autostart-after=panel

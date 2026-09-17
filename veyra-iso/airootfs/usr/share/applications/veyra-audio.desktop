@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Veyra Audio
+GenericName=Audio System
+Comment=Inspect PipeWire, WirePlumber and audio devices
+Exec=konsole -e /usr/bin/veyra-audio
+Icon=audio-card
+Terminal=false
+Categories=AudioVideo;System;Settings;
+StartupNotify=true

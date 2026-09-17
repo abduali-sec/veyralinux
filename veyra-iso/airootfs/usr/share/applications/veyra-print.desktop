@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Veyra Print
+GenericName=Printing and Scanning
+Comment=Manage printers and scanners
+Exec=/usr/bin/veyra-print
+Icon=printer
+Terminal=false
+Categories=HardwareSettings;System;
+StartupNotify=true

@@ -1,0 +1,95 @@
+#!/bin/bash
+
+set -u
+
+clear
+
+echo "========================================"
+echo "          VEYRA HARDWARE"
+echo "========================================"
+echo
+
+echo "=== CPU ==="
+lscpu 2>/dev/null | grep -E 'Model name|Architecture|CPU\(s\)|Core\(s\)|Thread\(s\)' || true
+
+echo
+echo "=== MEMORY ==="
+free -h
+
+echo
+echo "=== PCI DEVICES ==="
+lspci 2>/dev/null | grep -E 'VGA|3D|Display|Audio|Network|USB|SATA|Non-Volatile' || true
+
+echo
+echo "=== USB ==="
+lsusb 2>/dev/null || true
+
+echo
+echo "=== TEMPERATURES ==="
+if command -v sensors >/dev/null 2>&1; then
+    sensors 2>/dev/null || echo "No sensor data available."
+else
+    echo "lm_sensors is not installed."
+fi
+
+echo
+echo "=== BATTERY ==="
+if command -v upower >/dev/null 2>&1; then
+    BATTERY_FOUND=0
+
+    while read -r path; do
+        [ -z "$path" ] && continue
+        BATTERY_FOUND=1
+        upower -i "$path" 2>/dev/null | \
+            grep -E 'native-path|model|state|percentage|capacity|energy|time to'
+    done < <(upower -e 2>/dev/null | grep '/battery_')
+
+    [ "$BATTERY_FOUND" -eq 0 ] &&
+        echo "No battery detected."
+else
+    echo "upower is not installed."
+fi
+
+echo
+echo "=== STORAGE ==="
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MODEL,MOUNTPOINTS
+
+echo
+echo "=== SMART STORAGE ==="
+if command -v smartctl >/dev/null 2>&1; then
+    while read -r dev type; do
+        [ -z "$dev" ] && continue
+
+        echo
+        echo "--- $dev ($type) ---"
+
+        case "$type" in
+            disk)
+                smartctl -H "$dev" 2>&1 || true
+                ;;
+        esac
+    done < <(
+        lsblk -dnpo NAME,TYPE 2>/dev/null
+    )
+else
+    echo "smartmontools is not installed."
+fi
+
+echo
+echo "=== NVMe ==="
+if command -v nvme >/dev/null 2>&1; then
+    nvme list 2>/dev/null || echo "No NVMe devices detected."
+else
+    echo "nvme-cli is not installed."
+fi
+
+echo
+echo "=== FIRMWARE ==="
+if command -v fwupdmgr >/dev/null 2>&1; then
+    fwupdmgr get-devices 2>/dev/null || true
+else
+    echo "fwupd is not installed."
+fi
+
+echo
+echo "========================================"

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Veyra Installer
+Comment=Install Veyra Linux
+Exec=pkexec /usr/bin/veyra-installer
+Icon=system-software-install
+Terminal=true
+Categories=System;Settings;

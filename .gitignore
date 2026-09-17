@@ -1,6 +1,35 @@
+# ArchISO build artifacts
+veyra-iso/work/
+veyra-iso/out/
+
+# ISO / VM images
+*.iso
+*.vdi
+*.img
+*.raw
+
+# Rust build artifacts
 veyra-cli/target/
-veyra-repo-git/
-veyra-hello-pkg/
-veyra-repo/
+
+# Temporary package-list backups
+*.backup-*
+
+# Editor / OS junk
 *.swp
-*.tmp
+*.swo
+*~
+veyra-repo-git/
+
+# Local package build output
+veyra-hello-pkg/pkg/
+veyra-hello-pkg/*.pkg.tar.*
+
+# Veyra hello package build output
+veyra-hello-pkg/pkg/
+veyra-hello-pkg/*.pkg.tar.*
+
+# Generated Veyra binaries
+veyra-iso/airootfs/usr/bin/vpm
+
+# Generated Veyra package repository workspace
+veyra-repo/

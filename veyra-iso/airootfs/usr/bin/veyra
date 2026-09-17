@@ -1,0 +1,108 @@
+#!/bin/bash
+
+set -u
+
+show_help() {
+    echo "Veyra Linux"
+    echo
+    echo "Usage:"
+    echo "  veyra info"
+    echo "  veyra settings"
+    echo "  veyra update"
+    echo "  veyra doctor"
+    echo "  veyra installer"
+    echo "  veyra welcome"
+    echo "  veyra disks"
+    echo "  veyra hardware"
+    echo "  veyra audio"
+    echo "  veyra print"
+    echo "  veyra power"
+    echo "  veyra firewall"
+    echo "  veyra center"
+    echo "  veyra menu"
+    echo "  veyra about"
+    echo
+    echo "Package manager:"
+    echo "  vpm install <package>"
+    echo "  vpm remove <package>"
+    echo "  vpm search <package>"
+    echo "  vpm info <package>"
+    echo "  vpm sync"
+    echo "  vpm update"
+}
+
+case "${1:-}" in
+    info)
+        exec veyra-info
+        ;;
+
+    settings)
+        exec veyra-settings
+        ;;
+
+    update)
+        exec veyra-update
+        ;;
+
+    doctor)
+        exec veyra-doctor
+        ;;
+
+    installer)
+        exec veyra-installer
+        ;;
+
+    welcome)
+        exec veyra-welcome
+        ;;
+
+    disks)
+        exec veyra-disks
+        ;;
+
+    hardware)
+        exec veyra-hardware
+        ;;
+
+    audio)
+        exec veyra-audio
+        ;;
+
+    print)
+        exec veyra-print
+        ;;
+
+    power)
+        exec veyra-power
+        ;;
+
+    firewall)
+        exec veyra-firewall
+        ;;
+
+    center)
+        exec veyra-center
+        ;;
+
+    menu)
+        exec veyra-menu
+        ;;
+
+    about)
+        exec veyra-about
+        ;;
+
+    help|--help|-h)
+        show_help
+        ;;
+
+    "")
+        show_help
+        ;;
+
+    *)
+        echo "Veyra: unknown command '$1'" >&2
+        echo "Use: veyra help" >&2
+        exit 2
+        ;;
+esac

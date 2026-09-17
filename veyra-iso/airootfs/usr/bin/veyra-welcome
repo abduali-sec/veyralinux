@@ -1,0 +1,89 @@
+#!/bin/bash
+
+set -u
+
+CONFIG_DIR="$HOME/.config/veyra"
+DONE_FILE="$CONFIG_DIR/welcome-complete"
+
+mkdir -p "$CONFIG_DIR"
+
+open_system() {
+    systemsettings "$1"
+}
+
+while true; do
+    CHOICE=$(kdialog \
+        --title "Welcome to Veyra" \
+        --menu "Welcome to Veyra Linux" \
+        info "System Information" \
+        appearance "Appearance" \
+        display "Display" \
+        network "Network" \
+        audio "Audio" \
+        bluetooth "Bluetooth" \
+        time "Date & Time" \
+        update "Check for Veyra Updates" \
+        doctor "Run Veyra Doctor" \
+        about "About Veyra" \
+        finish "Finish Setup")
+
+    [ "$?" -eq 0 ] || exit 0
+
+    case "$CHOICE" in
+        info)
+            konsole -e /usr/bin/veyra-info
+            ;;
+
+        appearance)
+            open_system kcm_lookandfeel
+            ;;
+
+        display)
+            open_system kcm_kscreen
+            ;;
+
+        network)
+            open_system kcm_networkmanagement
+            ;;
+
+        audio)
+            open_system kcm_pulseaudio
+            ;;
+
+        bluetooth)
+            open_system kcm_bluetooth
+            ;;
+
+        time)
+            open_system kcm_clock
+            ;;
+
+        update)
+            konsole -e /usr/bin/veyra-update
+            ;;
+
+        doctor)
+            konsole -e /usr/bin/veyra-doctor
+            ;;
+
+        about)
+            konsole -e /usr/bin/veyra-about
+            ;;
+
+        finish)
+            kdialog \
+                --title "Veyra" \
+                --yesno "Finish Veyra first-time setup?"
+
+            if [ "$?" -eq 0 ]; then
+                touch "$DONE_FILE"
+
+                kdialog \
+                    --title "Veyra" \
+                    --msgbox "Veyra setup is complete."
+
+                exit 0
+            fi
+            ;;
+    esac
+done

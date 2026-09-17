@@ -1,0 +1,498 @@
+#!/bin/bash
+
+set -u
+
+PASS=0
+WARN=0
+FAIL=0
+
+ok() {
+    printf '  [OK]   %s\n' "$1"
+    PASS=$((PASS + 1))
+}
+
+warn() {
+    printf '  [WARN] %s\n' "$1"
+    WARN=$((WARN + 1))
+}
+
+fail() {
+    printf '  [FAIL] %s\n' "$1"
+    FAIL=$((FAIL + 1))
+}
+
+section() {
+    echo
+    echo "=== $1 ==="
+}
+
+check_command() {
+    local cmd="$1"
+    local label="$2"
+
+    if command -v "$cmd" >/dev/null 2>&1; then
+        ok "$label"
+    else
+        fail "$label"
+    fi
+}
+
+check_service() {
+    local service="$1"
+    local label="$2"
+
+    if ! command -v systemctl >/dev/null 2>&1; then
+        warn "$label: systemctl unavailable"
+        return
+    fi
+
+    if systemctl is-active --quiet "$service" 2>/dev/null; then
+        ok "$label is active"
+    elif systemctl is-enabled --quiet "$service" 2>/dev/null; then
+        warn "$label is enabled but not active"
+    else
+        warn "$label is not active"
+    fi
+}
+
+check_url() {
+    local url="$1"
+    local label="$2"
+
+    if ! command -v curl >/dev/null 2>&1; then
+        fail "$label: curl unavailable"
+        return
+    fi
+
+    if curl -fsSL --max-time 8 -o /dev/null "$url" 2>/dev/null; then
+        ok "$label reachable"
+    else
+        fail "$label unreachable"
+    fi
+}
+
+clear
+
+echo "========================================"
+echo "             VEYRA DOCTOR"
+echo "========================================"
+echo
+echo "System diagnostics for Veyra Linux"
+echo "Made in Abduali"
+
+section "Veyra Core"
+
+check_command "veyra" "Veyra CLI"
+check_command "vpm" "Veyra Package Manager"
+check_command "fastfetch" "Fastfetch"
+check_command "veyra-settings" "Veyra Settings"
+check_command "veyra-installer" "Veyra Installer"
+check_command "veyra-center" "Veyra Center"
+check_command "veyra-welcome" "Veyra Welcome"
+check_command "veyra-hardware" "Veyra Hardware"
+
+if command -v vpm >/dev/null 2>&1; then
+    VERSION="$(vpm version 2>/dev/null || true)"
+
+    if [ -n "$VERSION" ]; then
+        ok "VPM responds: $VERSION"
+    else
+        fail "VPM did not return a version"
+    fi
+fi
+
+section "Operating System"
+
+if [ -r /etc/os-release ]; then
+    . /etc/os-release
+
+    if [ "${ID:-}" = "veyra" ]; then
+        ok "OS identity: Veyra Linux"
+    else
+        fail "OS identity is not Veyra"
+    fi
+
+    if [ "${NAME:-}" = "Veyra Linux" ]; then
+        ok "OS name: Veyra Linux"
+    else
+        warn "Unexpected OS name: ${NAME:-unknown}"
+    fi
+
+    ok "OS version: ${VERSION:-unknown}"
+    ok "Architecture: $(uname -m)"
+else
+    fail "/etc/os-release is missing"
+fi
+
+if [ -f /etc/veyra/system.conf ]; then
+    ok "Veyra system configuration exists"
+else
+    warn "/etc/veyra/system.conf missing"
+fi
+
+section "Desktop"
+
+check_command "plasmashell" "KDE Plasma"
+check_command "kwin_wayland" "KWin Wayland"
+check_command "dolphin" "Dolphin file manager"
+check_command "konsole" "Konsole terminal"
+check_command "systemsettings" "KDE System Settings"
+
+if [ -n "${XDG_CURRENT_DESKTOP:-}" ]; then
+    ok "Desktop session: $XDG_CURRENT_DESKTOP"
+else
+    warn "Desktop session variable is not set"
+fi
+
+section "Display Manager"
+
+check_service "sddm.service" "SDDM"
+
+section "Network"
+
+check_command "nmcli" "NetworkManager CLI"
+check_service "NetworkManager.service" "NetworkManager"
+
+if command -v nmcli >/dev/null 2>&1; then
+    if nmcli general status >/dev/null 2>&1; then
+        ok "NetworkManager responds"
+    else
+        warn "NetworkManager is installed but not responding"
+    fi
+
+    STATE="$(nmcli -t -f STATE general 2>/dev/null || true)"
+
+    if [ -n "$STATE" ]; then
+        ok "Network state: $STATE"
+    else
+        warn "Unable to determine network state"
+    fi
+fi
+
+section "Audio"
+
+check_command "pactl" "PulseAudio/PipeWire compatibility"
+check_command "pw-cli" "PipeWire CLI"
+check_command "wpctl" "WirePlumber control"
+
+if command -v systemctl >/dev/null 2>&1; then
+    if systemctl --user is-active --quiet pipewire.service 2>/dev/null; then
+        ok "PipeWire is active"
+    else
+        warn "PipeWire user service is not active"
+    fi
+
+    if systemctl --user is-active --quiet wireplumber.service 2>/dev/null; then
+        ok "WirePlumber is active"
+    else
+        warn "WirePlumber user service is not active"
+    fi
+fi
+
+section "Bluetooth"
+
+check_command "bluetoothctl" "Bluetooth CLI"
+check_service "bluetooth.service" "Bluetooth service"
+
+if command -v bluetoothctl >/dev/null 2>&1; then
+    if bluetoothctl show >/dev/null 2>&1; then
+        ok "Bluetooth controller is accessible"
+    else
+        warn "Bluetooth controller is unavailable"
+    fi
+fi
+
+section "Power"
+
+check_command "powerprofilesctl" "Power Profiles"
+check_service "power-profiles-daemon.service" "Power Profiles service"
+
+if command -v powerprofilesctl >/dev/null 2>&1; then
+    CURRENT_POWER="$(powerprofilesctl get 2>/dev/null || true)"
+
+    if [ -n "$CURRENT_POWER" ]; then
+        ok "Current power profile: $CURRENT_POWER"
+    else
+        warn "Power profile unavailable"
+    fi
+
+    if powerprofilesctl list >/dev/null 2>&1; then
+        ok "Power profiles are queryable"
+    else
+        warn "Unable to query power profiles"
+    fi
+fi
+
+section "Firewall"
+
+check_command "firewall-cmd" "firewalld CLI"
+check_service "firewalld.service" "Firewall service"
+
+if command -v firewall-cmd >/dev/null 2>&1; then
+    FIREWALL_STATE="$(firewall-cmd --state 2>/dev/null || true)"
+
+    if [ "$FIREWALL_STATE" = "running" ]; then
+        ok "Firewall is running"
+    else
+        warn "Firewall is not running"
+    fi
+
+    DEFAULT_ZONE="$(firewall-cmd --get-default-zone 2>/dev/null || true)"
+
+    if [ -n "$DEFAULT_ZONE" ]; then
+        ok "Firewall default zone: $DEFAULT_ZONE"
+    else
+        warn "Unable to determine firewall zone"
+    fi
+fi
+
+section "Hardware"
+
+check_command "lscpu" "CPU information"
+check_command "lspci" "PCI device information"
+check_command "lsusb" "USB device information"
+check_command "sensors" "Hardware sensors"
+check_command "smartctl" "SMART diagnostics"
+check_command "nvme" "NVMe diagnostics"
+check_command "fwupdmgr" "Firmware management"
+check_command "upower" "Power device management"
+
+if command -v lscpu >/dev/null 2>&1; then
+    CPU_MODEL="$(lscpu 2>/dev/null | awk -F: '/Model name/ {sub(/^[ \t]+/, "", $2); print $2; exit}')"
+
+    if [ -n "$CPU_MODEL" ]; then
+        ok "CPU detected: $CPU_MODEL"
+    else
+        warn "CPU model could not be detected"
+    fi
+fi
+
+if command -v free >/dev/null 2>&1; then
+    MEM_TOTAL="$(free -h 2>/dev/null | awk '/^Mem:/ {print $2}')"
+
+    if [ -n "$MEM_TOTAL" ]; then
+        ok "Memory detected: $MEM_TOTAL"
+    else
+        warn "Memory information unavailable"
+    fi
+fi
+
+if command -v lspci >/dev/null 2>&1; then
+    if lspci 2>/dev/null | grep -Eq 'VGA compatible controller|3D controller|Display controller'; then
+        ok "Graphics controller detected"
+    else
+        warn "Graphics controller not detected"
+    fi
+fi
+
+if command -v sensors >/dev/null 2>&1; then
+    if sensors >/dev/null 2>&1; then
+        ok "Hardware sensor subsystem responds"
+    else
+        warn "No readable hardware sensor data"
+    fi
+fi
+
+section "Storage"
+
+check_command "lsblk" "Block device manager"
+check_command "blkid" "Filesystem identification"
+check_command "df" "Filesystem usage"
+check_command "mount" "Mount subsystem"
+
+if command -v lsblk >/dev/null 2>&1; then
+    if lsblk >/dev/null 2>&1; then
+        ok "Storage subsystem responding"
+    else
+        fail "Storage subsystem unavailable"
+    fi
+fi
+
+DISK_COUNT=0
+
+if command -v lsblk >/dev/null 2>&1; then
+    DISK_COUNT="$(lsblk -dn -o TYPE 2>/dev/null | grep -cx 'disk' || true)"
+
+    if [ "$DISK_COUNT" -gt 0 ]; then
+        ok "Physical disks detected: $DISK_COUNT"
+    else
+        warn "No physical disks detected"
+    fi
+fi
+
+if command -v smartctl >/dev/null 2>&1; then
+    SMART_FOUND=0
+
+    while read -r device type; do
+        [ -z "$device" ] && continue
+        [ "$type" != "disk" ] && continue
+
+        SMART_FOUND=1
+
+        if smartctl -H "$device" >/dev/null 2>&1; then
+            ok "SMART query succeeded: $device"
+        else
+            warn "SMART query unavailable: $device"
+        fi
+    done < <(lsblk -dnpo NAME,TYPE 2>/dev/null)
+
+    [ "$SMART_FOUND" -eq 0 ] &&
+        warn "No suitable disks found for SMART diagnostics"
+fi
+
+if command -v nvme >/dev/null 2>&1; then
+    if nvme list 2>/dev/null | grep -q '^/dev/nvme'; then
+        ok "NVMe controller detected"
+    else
+        ok "No NVMe controller detected"
+    fi
+fi
+
+section "Battery"
+
+if command -v upower >/dev/null 2>&1; then
+    BATTERY_COUNT="$(upower -e 2>/dev/null | grep -c '/battery_' || true)"
+
+    if [ "$BATTERY_COUNT" -gt 0 ]; then
+        ok "Battery devices detected: $BATTERY_COUNT"
+    else
+        ok "No battery detected (desktop system or no battery present)"
+    fi
+else
+    fail "upower unavailable"
+fi
+
+section "Firmware"
+
+if command -v fwupdmgr >/dev/null 2>&1; then
+    if fwupdmgr get-devices >/dev/null 2>&1; then
+        ok "Firmware device database responds"
+    else
+        warn "Firmware device information unavailable"
+    fi
+fi
+
+section "Printing & Scanning"
+
+check_command "lpstat" "CUPS printer tools"
+check_command "lpinfo" "CUPS device discovery"
+check_command "lp" "CUPS print command"
+check_command "scanimage" "SANE scanner tools"
+check_command "veyra-print" "Veyra Print"
+check_service "cups.service" "Printing service"
+
+if command -v lpstat >/dev/null 2>&1; then
+    if lpstat -p >/dev/null 2>&1; then
+        ok "CUPS printer subsystem responds"
+    else
+        warn "No configured printers"
+    fi
+fi
+
+if command -v scanimage >/dev/null 2>&1; then
+    scanimage -L >/dev/null 2>&1 || true
+    ok "SANE scanner subsystem available"
+fi
+
+section "System Services"
+
+check_service "chronyd.service" "Time synchronization"
+check_service "libvirtd.service" "Virtualization service"
+
+section "Veyra Repository"
+
+REPO_URL="https://raw.githubusercontent.com/abduali-sec/veyra-repo/main"
+REPO_DB="$REPO_URL/veyra.db.tar.gz"
+
+check_url "$REPO_DB" "Veyra Repository"
+
+if command -v curl >/dev/null 2>&1 &&
+   command -v tar >/dev/null 2>&1
+then
+    TMP_DB="$(mktemp)"
+
+    if curl -fsSL --max-time 15 "$REPO_DB" -o "$TMP_DB" 2>/dev/null; then
+        if tar -tzf "$TMP_DB" >/dev/null 2>&1; then
+            ok "Veyra repository database is valid"
+
+            if tar -tzf "$TMP_DB" 2>/dev/null |
+                grep -q '/desc$'
+            then
+                ok "Repository metadata entries found"
+            else
+                warn "Repository database contains no package metadata entries"
+            fi
+        else
+            fail "Veyra repository database is invalid"
+        fi
+    else
+        fail "Unable to download Veyra repository database"
+    fi
+
+    rm -f "$TMP_DB"
+fi
+
+section "Veyra API"
+
+API_URL="https://veyra-api.abdualialderson.workers.dev/"
+
+check_url "$API_URL" "Veyra API"
+
+section "Veyra Branding"
+
+for path in \
+    /etc/os-release \
+    /etc/veyra/system.conf \
+    /usr/share/veyra/about.txt \
+    /etc/fastfetch/config.jsonc \
+    /etc/veyra/branding.conf
+do
+    if [ -e "$path" ]; then
+        ok "Configuration: $path"
+    else
+        warn "Missing configuration: $path"
+    fi
+done
+
+section "System Identity"
+
+if command -v hostnamectl >/dev/null 2>&1; then
+    HOSTNAME="$(hostnamectl --static 2>/dev/null || hostname)"
+
+    if [ -n "$HOSTNAME" ]; then
+        ok "Hostname: $HOSTNAME"
+    else
+        warn "Hostname unavailable"
+    fi
+fi
+
+if command -v locale >/dev/null 2>&1; then
+    CURRENT_LOCALE="$(locale 2>/dev/null | awk -F= '$1=="LANG" {print $2}' | head -n1)"
+
+    if [ -n "$CURRENT_LOCALE" ]; then
+        ok "Locale: $CURRENT_LOCALE"
+    else
+        warn "Locale is not configured"
+    fi
+fi
+
+section "Summary"
+
+echo
+echo "Passed : $PASS"
+echo "Warnings: $WARN"
+echo "Failed : $FAIL"
+echo
+
+if [ "$FAIL" -gt 0 ]; then
+    echo "Veyra Doctor found critical problems."
+    exit 1
+fi
+
+if [ "$WARN" -gt 0 ]; then
+    echo "Veyra Doctor completed with warnings."
+    exit 0
+fi
+
+echo "Veyra Doctor: all checks passed."
+exit 0

@@ -5,6 +5,10 @@ mod vpm_api {
     include!("../vpm_api.rs");
 }
 
+mod vpm_update {
+    include!("../vpm_update.rs");
+}
+
 mod vpm_repo {
     include!("../vpm_repo.rs");
 }
@@ -168,7 +172,9 @@ fn main() -> ExitCode {
         },
 
         Some("update") => {
-            if vpm_api::repository() {
+            if !vpm_api::repository() {
+                ExitCode::from(1)
+            } else if vpm_update::update() {
                 ExitCode::SUCCESS
             } else {
                 ExitCode::from(1)

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -e
+
+echo "========================================"
+echo "           VEYRA UPDATE"
+echo "========================================"
+echo
+
+echo "[1/2] Synchronizing Veyra Repository..."
+vpm sync
+
+echo
+echo "[2/2] Checking for updates..."
+vpm update
+
+echo
+echo "Veyra update check completed."

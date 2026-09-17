@@ -1,0 +1,9 @@
+NAME="Veyra Linux"
+PRETTY_NAME="Veyra Linux"
+ID=veyra
+VERSION="0.1.0"
+VERSION_CODENAME="Genesis"
+HOME_URL="https://t.me/kivilinux"
+DOCUMENTATION_URL="https://github.com/abduali-sec/veyralinux"
+SUPPORT_URL="https://t.me/Veyralinuxx"
+BUG_REPORT_URL="https://github.com/abduali-sec/veyralinux"

@@ -1,0 +1,96 @@
+#!/bin/bash
+
+set -u
+
+if ! command -v kdialog >/dev/null 2>&1; then
+    exec systemsettings
+fi
+
+while true; do
+    choice=$(kdialog \
+        --title "Veyra Settings" \
+        --menu "Veyra Linux — System Settings" \
+        system "System Settings" \
+        appearance "Appearance" \
+        display "Display" \
+        audio "Audio" \
+        network "Network" \
+        bluetooth "Bluetooth" \
+        keyboard "Keyboard" \
+        users "Users" \
+        time "Date & Time" \
+        storage "Storage" \
+        packages "Packages" \
+        diagnostics "Veyra Diagnostics" \
+        info "About Veyra" \
+        advanced-audio "Advanced Audio (PulseAudio Volume Control)" \
+        quit "Close")
+
+    [ "$?" -eq 0 ] || exit 0
+
+    case "$choice" in
+        system)
+            systemsettings
+            ;;
+
+        appearance)
+            systemsettings kcm_lookandfeel
+            ;;
+
+        display)
+            systemsettings kcm_kscreen
+            ;;
+
+        audio)
+            systemsettings kcm_pulseaudio
+            ;;
+
+        network)
+            systemsettings kcm_networkmanagement
+            ;;
+
+        bluetooth)
+            systemsettings kcm_bluetooth
+            ;;
+
+        keyboard)
+            systemsettings kcm_keyboard
+            ;;
+
+        users)
+            systemsettings kcm_users
+            ;;
+
+        time)
+            systemsettings kcm_clock
+            ;;
+
+        storage)
+            konsole -e /usr/bin/veyra-disks power
+            ;;
+
+        packages)
+            konsole -e /usr/bin/vpm
+            ;;
+
+        update-settings)
+            systemsettings kcm_updates
+            ;;
+
+        diagnostics)
+            konsole -e /usr/bin/veyra-doctor
+            ;;
+
+        info)
+            konsole -e /usr/bin/veyra-info
+            ;;
+
+        advanced-audio)
+            pavucontrol
+            ;;
+
+        quit)
+            exit 0
+            ;;
+    esac
+done

@@ -1,0 +1,31 @@
+#!/bin/bash
+
+clear
+
+cat <<'INFO'
+========================================
+              VEYRA LINUX
+========================================
+
+Version   : 0.1.0
+Codename  : Genesis
+Manager   : Veyra Package Manager (vpm)
+
+Repository:
+https://github.com/abduali-sec/veyra-repo
+
+Project:
+https://github.com/abduali-sec/veyralinux
+
+API:
+https://veyra-api.abdualialderson.workers.dev/
+
+Support:
+https://t.me/Veyralinuxx
+
+Community:
+https://t.me/kivilinux
+
+Made in Abduali
+========================================
+INFO

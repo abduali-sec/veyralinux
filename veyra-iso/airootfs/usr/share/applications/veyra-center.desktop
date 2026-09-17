@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Veyra Center
+GenericName=Veyra Control Center
+Comment=Manage Veyra Linux
+Exec=/usr/bin/veyra-center
+Icon=system-preferences
+Terminal=false
+Categories=System;Settings;
+StartupNotify=true

@@ -1,0 +1,241 @@
+
+# =========================
+7zip
+arch-install-scripts
+# ARCHIVE / FILE TOOLS
+ark
+# AUDIO
+avahi
+base
+base-devel
+bash
+bash-completion
+bind
+bluedevil
+# BLUETOOTH
+bluez
+bluez-utils
+# BROWSERS
+btop
+btrfs-progs
+bzip2
+ca-certificates
+ca-certificates-utils
+chrony
+clang
+cmake
+# CONTAINERS / VIRTUALIZATION
+cryptsetup
+cups
+cups-filters
+cups-pdf
+curl
+dbus
+# DBUS
+dbus-broker
+# DEVELOPMENT
+# DISK / INSTALLATION
+# DISPLAY / GRAPHICS
+# DISPLAY MANAGER
+dmidecode
+dnsmasq
+dolphin
+dosfstools
+e2fsprogs
+edk2-ovmf
+efibootmgr
+ethtool
+exfatprogs
+f2fs-tools
+fastfetch
+ffmpeg
+ffmpegthumbnailer
+ffmpegthumbs
+filelight
+# FILE MANAGERS / DESKTOP
+firefox
+firewalld
+fish
+# FONTS
+fwupd
+gcc
+git
+git-lfs
+gnupg
+gptfdisk
+grub
+gst-libav
+gst-plugins-bad
+gst-plugins-base
+gst-plugins-good
+gst-plugins-ugly
+gutenprint
+gvfs
+gvfs-mtp
+gvfs-smb
+gwenview
+gzip
+hdparm
+htop
+hwinfo
+inetutils
+inxi
+iotop
+iproute2
+iwd
+jfsutils
+kate
+kcalc
+kcharselect
+kcolorchooser
+kdegraphics-thumbnailers
+# KDE PLASMA
+# KDE utilities
+kdialog
+kgpg
+kio-extras
+konsole
+ksystemlog
+less
+libva
+libva-utils
+libvirt
+linux
+linux-firmware
+# LIVE ENVIRONMENT TOOLS
+llvm
+lm_sensors
+lsof
+ltrace
+lvm2
+make
+man-db
+man-pages
+mdadm
+mesa
+mesa-utils
+meson
+mkinitcpio
+modemmanager
+mtr
+# MULTIMEDIA
+nano
+neovim
+# NETWORK
+networkmanager
+network-manager-applet
+# NETWORK UTILITIES
+nilfs-utils
+ninja
+nmap
+noto-fonts
+noto-fonts-cjk
+noto-fonts-emoji
+noto-fonts-extra
+nss-mdns
+ntfs-3g
+nvme-cli
+okular
+openssh
+openssl
+pacman-contrib
+parted
+pavucontrol
+pciutils
+pipewire
+pipewire-alsa
+pipewire-audio
+pipewire-jack
+pipewire-pulse
+pkgconf
+plasma-browser-integration
+plasma-desktop
+plasma-disks
+plasma-firewall
+plasma-nm
+plasma-pa
+plasma-sdk
+plasma-systemmonitor
+plasma-workspace
+playerctl
+polkit
+# POLKIT / AUTH
+polkit-kde-agent
+power-profiles-daemon
+# PRINTING / SCANNING
+python
+python-pip
+python-setuptools
+python-wheel
+qemu-desktop
+qemu-img
+rebuild-detector
+reflector
+rsync
+rust
+sane
+sane-airscan
+sddm
+# SECURITY / ENCRYPTION
+shared-mime-info
+simple-scan
+smartmontools
+spectacle
+# STORAGE / FILESYSTEMS
+strace
+sudo
+syslinux
+system-config-printer
+systemd
+# SYSTEM INFORMATION
+systemsettings
+# SYSTEM TOOLS
+tar
+tcpdump
+# TERMINAL / SHELL
+# TIME / LOCALE
+tmux
+traceroute
+tree
+ttf-dejavu
+ttf-fira-code
+ttf-fira-mono
+ttf-fira-sans
+ttf-liberation
+tzdata
+udisks2
+udisks2-btrfs
+unrar
+unzip
+upower
+usbutils
+# Veyra dependencies
+# Veyra Installer bootloader
+# VEYRA LINUX - BASE
+vim
+virt-manager
+vulkan-icd-loader
+vulkan-intel
+vulkan-nouveau
+vulkan-radeon
+vulkan-tools
+wget
+which
+wireless-regdb
+wireless_tools
+wireplumber
+wpa_supplicant
+xdg-user-dirs
+xdg-utils
+xf86-video-amdgpu
+xf86-video-intel
+xf86-video-nouveau
+xfsprogs
+xorg-server
+xorg-xinit
+xorg-xwayland
+xz
+zip
+zsh
+zsh-completions
+zstd

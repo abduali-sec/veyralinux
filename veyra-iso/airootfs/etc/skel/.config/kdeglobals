@@ -1,0 +1,14 @@
+[General]
+Name=Veyra
+ColorScheme=BreezeDark
+
+[KDE]
+ShowDeleteCommand=true
+
+[WM]
+activeBackground=35,45,65
+activeBlend=255,255,255
+activeForeground=255,255,255
+inactiveBackground=25,32,48
+inactiveBlend=180,180,180
+inactiveForeground=210,210,210

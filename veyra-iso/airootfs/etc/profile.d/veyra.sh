@@ -1,0 +1,5 @@
+export VEYRA_ROOT="/usr/share/veyra"
+export VEYRA_CONFIG="/etc/veyra"
+export VEYRA_API="https://veyra-api.abdualialderson.workers.dev/"
+export VEYRA_REPOSITORY="https://raw.githubusercontent.com/abduali-sec/veyra-repo/main"
+export VEYRA_PACKAGES="https://github.com/abduali-sec/veyra-packages"

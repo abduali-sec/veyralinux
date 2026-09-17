@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=About Veyra
+GenericName=Veyra Information
+Comment=Information about Veyra Linux
+Exec=konsole -e /usr/bin/veyra-about
+Icon=dialog-information
+Terminal=false
+Categories=System;
+StartupNotify=true

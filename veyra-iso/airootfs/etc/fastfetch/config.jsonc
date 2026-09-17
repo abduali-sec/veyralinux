@@ -1,0 +1,56 @@
+{
+    "logo": {
+        "type": "small",
+        "source": [
+            "██╗   ██╗███████╗██╗   ██╗██████╗  █████╗",
+            "██║   ██║██╔════╝╚██╗ ██╔╝██╔══██╗██╔══██╗",
+            "██║   ██║█████╗   ╚████╔╝ ██████╔╝███████║",
+            "╚██╗ ██╔╝██╔══╝    ╚██╔╝  ██╔══██╗██╔══██║",
+            " ╚████╔╝ ███████╗   ██║   ██║  ██║██║  ██║",
+            "  ╚═══╝  ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝"
+        ]
+    },
+
+    "modules": [
+        "title",
+        "separator",
+        {
+            "type": "custom",
+            "format": "OS        : Veyra Linux"
+        },
+        {
+            "type": "custom",
+            "format": "Version   : 0.1.0 Genesis"
+        },
+        "kernel",
+        "uptime",
+        "packages",
+        "shell",
+        "display",
+        "de",
+        "wm",
+        "cpu",
+        "gpu",
+        "memory",
+        {
+            "type": "disk",
+            "folders": ["/"]
+        },
+        {
+            "type": "localip"
+        },
+        "break",
+        {
+            "type": "custom",
+            "format": "Package Manager : vpm"
+        },
+        {
+            "type": "custom",
+            "format": "Repository     : Veyra Repository"
+        },
+        {
+            "type": "custom",
+            "format": "Made in Abduali"
+        }
+    ]
+}

@@ -1,0 +1,61 @@
+#!/bin/bash
+
+set -u
+
+if ! command -v firewall-cmd >/dev/null 2>&1; then
+    kdialog --error "firewall-cmd не найден."
+    exit 1
+fi
+
+while true; do
+    STATUS=$(firewall-cmd --state 2>/dev/null || echo "not running")
+    ZONE=$(firewall-cmd --get-default-zone 2>/dev/null || echo "unknown")
+
+    CHOICE=$(kdialog \
+        --title "Veyra Firewall" \
+        --menu "Firewall: ${STATUS}    Zone: ${ZONE}" \
+        status "Показать состояние" \
+        start "Запустить Firewall" \
+        reload "Перезагрузить Firewall" \
+        zone "Показать активную зону" \
+        services "Показать разрешённые сервисы" \
+        close "Закрыть")
+
+    [ "$?" -eq 0 ] || exit 0
+
+    case "$CHOICE" in
+        status)
+            INFO=$(
+                printf 'State: %s\n' "$STATUS"
+                printf 'Default zone: %s\n\n' "$ZONE"
+                firewall-cmd --list-all 2>&1
+            )
+            kdialog --textbox <(printf '%s\n' "$INFO") 700 500
+            ;;
+        start)
+            if systemctl start firewalld 2>/dev/null; then
+                kdialog --msgbox "Firewall запущен."
+            else
+                kdialog --error "Не удалось запустить firewalld."
+            fi
+            ;;
+        reload)
+            if firewall-cmd --reload >/dev/null 2>&1; then
+                kdialog --msgbox "Правила Firewall перезагружены."
+            else
+                kdialog --error "Не удалось перезагрузить Firewall."
+            fi
+            ;;
+        zone)
+            INFO=$(firewall-cmd --get-active-zones 2>&1)
+            kdialog --textbox <(printf '%s\n' "$INFO") 600 300
+            ;;
+        services)
+            INFO=$(firewall-cmd --list-services 2>&1)
+            kdialog --textbox <(printf '%s\n' "$INFO") 600 300
+            ;;
+        close)
+            exit 0
+            ;;
+    esac
+done
