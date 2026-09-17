@@ -3,6 +3,6 @@ Type=Application
 Name=Veyra System Information
 Comment=Show Veyra system information
 Exec=konsole -e /usr/bin/veyra-info
-Icon=utilities-terminal
+Icon=veyra
 Terminal=false
 Categories=System;Utility;

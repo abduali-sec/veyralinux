@@ -3,6 +3,6 @@ Type=Application
 Name=Veyra Installer
 Comment=Install Veyra Linux
 Exec=pkexec /usr/bin/veyra-installer
-Icon=system-software-install
+Icon=veyra
 Terminal=true
 Categories=System;Settings;

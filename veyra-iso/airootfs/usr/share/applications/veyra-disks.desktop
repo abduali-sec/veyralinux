@@ -3,6 +3,6 @@ Type=Application
 Name=Veyra Disk Information
 Comment=View disk and filesystem information
 Exec=konsole -e /usr/bin/veyra-disks
-Icon=drive-harddisk
+Icon=veyra
 Terminal=false
 Categories=System;Utility;
