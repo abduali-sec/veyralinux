@@ -16,3 +16,17 @@ alias vu='veyra update'
 alias va='veyra about'
 
 alias vc='veyra-center'
+
+# Veyra shortcuts
+alias vinfo='veyra info'
+alias vcenter='veyra center'
+alias vsettings='veyra settings'
+alias vdoctor='veyra doctor'
+alias vupdate='veyra update'
+alias vhardware='veyra hardware'
+alias vaudio='veyra audio'
+alias vprint='veyra print'
+alias vpower='veyra power'
+alias vfirewall='veyra firewall'
+alias vinstall='sudo veyra-installer'
+alias vpkg='vpm'

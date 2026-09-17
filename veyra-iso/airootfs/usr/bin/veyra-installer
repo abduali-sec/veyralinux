@@ -477,6 +477,7 @@ install_packages() {
         plasma-desktop
         plasma-workspace
         plasma-nm
+        network-manager-applet
         plasma-pa
         systemsettings
         kdialog
@@ -504,6 +505,11 @@ install_packages() {
         sane
         simple-scan
         system-config-printer
+        gutenprint
+        sane-airscan
+        avahi
+        nss-mdns
+        modemmanager
         chrony
         firewalld
         power-profiles-daemon

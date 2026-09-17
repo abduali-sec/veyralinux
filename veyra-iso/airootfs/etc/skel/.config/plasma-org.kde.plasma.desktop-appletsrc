@@ -13,7 +13,7 @@ plugin=org.kde.plasma.kickoff
 PreloadWeight=0
 
 [Containments][2][Applets][3][Configuration][General]
-favorites=applications:firefox.desktop,applications:org.kde.dolphin.desktop,applications:org.kde.konsole.desktop,applications:org.kde.systemsettings.desktop,applications:org.kde.kate.desktop,applications:veyra-welcome.desktop,applications:veyra-settings.desktop,applications:veyra-installer.desktop,applications:veyra-about.desktop,applications:veyra-center.desktop
+favorites=applications:veyra-center.desktop,applications:firefox.desktop,applications:org.kde.dolphin.desktop,applications:org.kde.konsole.desktop,applications:org.kde.systemsettings.desktop,applications:org.kde.kate.desktop,applications:veyra-hardware.desktop,applications:veyra-doctor.desktop,applications:veyra-settings.desktop,applications:veyra-welcome.desktop
 
 [Containments][2][Applets][4]
 immutability=1

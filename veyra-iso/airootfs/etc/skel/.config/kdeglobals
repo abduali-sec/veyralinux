@@ -1,9 +1,16 @@
 [General]
 Name=Veyra
 ColorScheme=BreezeDark
+widgetStyle=Breeze
 
 [KDE]
+LookAndFeelPackage=org.kde.breezedark.desktop
 ShowDeleteCommand=true
+SingleClick=false
+AnimationDurationFactor=0.8
+
+[Icons]
+Theme=breeze-dark
 
 [WM]
 activeBackground=35,45,65

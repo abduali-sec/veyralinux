@@ -2,13 +2,16 @@
 
 clear
 
+[ -r /etc/veyra/fastfetch.conf ] &&
+    . /etc/veyra/fastfetch.conf
+
 echo "========================================"
 echo "              VEYRA LINUX"
 echo "========================================"
 echo
 echo "System"
 echo "------"
-echo "OS           : Veyra Linux"
+echo "OS           : ${VEYRA_NAME:-Veyra Linux}"
 echo "Version      : ${VEYRA_VERSION:-0.1.0}"
 echo "Codename     : ${VEYRA_CODENAME:-Genesis}"
 echo "Architecture : $(uname -m)"
@@ -18,4 +21,6 @@ echo
 
 if command -v fastfetch >/dev/null 2>&1; then
     fastfetch --config /etc/fastfetch/config.jsonc
+else
+    echo "Fastfetch is not installed."
 fi

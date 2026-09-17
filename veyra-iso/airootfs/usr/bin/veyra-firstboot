@@ -4,39 +4,100 @@ set -u
 
 USER_HOME="$HOME"
 CONFIG_DIR="$USER_HOME/.config"
-VEYRA_CONFIG="$CONFIG_DIR/veyra"
-MARKER="$VEYRA_CONFIG/firstboot-done"
+VEYRA_DIR="$CONFIG_DIR/veyra"
 
-mkdir -p "$CONFIG_DIR"
-mkdir -p "$VEYRA_CONFIG"
+FIRSTBOOT_MARKER="$VEYRA_DIR/firstboot-done"
+WELCOME_MARKER="$VEYRA_DIR/welcome-complete"
 
-if [ ! -f "$MARKER" ]; then
-    echo "Applying Veyra desktop defaults..."
+mkdir -p "$VEYRA_DIR"
 
-    kwriteconfig6 \
-        --file "$USER_HOME/.config/kdeglobals" \
-        --group General \
-        --key Name \
-        "Veyra"
+echo "Applying Veyra desktop defaults..."
 
-    kwriteconfig6 \
-        --file "$USER_HOME/.config/kdeglobals" \
-        --group KDE \
-        --key AnimationDurationFactor \
-        "1"
+# KDE general behavior
+kwriteconfig6 \
+    --file "$CONFIG_DIR/kdeglobals" \
+    --group General \
+    --key Name \
+    "Veyra"
 
-    WALLPAPER="/usr/share/veyra/branding/wallpapers/dark/veyra-dark-2560x1440.png"
+kwriteconfig6 \
+    --file "$CONFIG_DIR/kdeglobals" \
+    --group KDE \
+    --key AnimationDurationFactor \
+    "0.8"
 
-    if command -v plasma-apply-wallpaperimage >/dev/null 2>&1 &&
-       [ -f "$WALLPAPER" ]
-    then
-        plasma-apply-wallpaperimage "$WALLPAPER" || true
-    fi
+kwriteconfig6 \
+    --file "$CONFIG_DIR/kdeglobals" \
+    --group KDE \
+    --key LookAndFeelPackage \
+    "org.kde.breezedark.desktop"
 
-    touch "$MARKER"
+kwriteconfig6 \
+    --file "$CONFIG_DIR/kdeglobals" \
+    --group Icons \
+    --key Theme \
+    "breeze-dark"
+
+# KDE file dialogs / single click
+kwriteconfig6 \
+    --file "$CONFIG_DIR/kdeglobals" \
+    --group KDE \
+    --key SingleClick \
+    "false"
+
+# Default applications
+if command -v xdg-mime >/dev/null 2>&1; then
+    xdg-mime default firefox.desktop text/html
+    xdg-mime default firefox.desktop x-scheme-handler/http
+    xdg-mime default firefox.desktop x-scheme-handler/https
+
+    xdg-mime default org.kde.dolphin.desktop inode/directory
+
+    xdg-mime default org.kde.kate.desktop text/plain
+    xdg-mime default org.kde.kate.desktop text/x-csrc
+    xdg-mime default org.kde.kate.desktop text/x-c++src
+
+    xdg-mime default ark.desktop application/zip
 fi
 
-if [ ! -f "$VEYRA_CONFIG/welcome-complete" ]; then
+# User directories
+if command -v xdg-user-dirs-update >/dev/null 2>&1; then
+    xdg-user-dirs-update
+fi
+
+# Veyra directories
+mkdir -p \
+    "$USER_HOME/.config/veyra" \
+    "$USER_HOME/.local/share/veyra" \
+    "$USER_HOME/.cache/veyra"
+
+# Wallpaper
+WALLPAPER="/usr/share/veyra/branding/wallpapers/dark/veyra-dark-2560x1440.png"
+
+if command -v plasma-apply-wallpaperimage >/dev/null 2>&1 &&
+   [ -f "$WALLPAPER" ]
+then
+    plasma-apply-wallpaperimage "$WALLPAPER" >/dev/null 2>&1 || true
+fi
+
+# Ensure Veyra environment is available
+mkdir -p "$CONFIG_DIR/plasma-workspace/env"
+
+cat > "$CONFIG_DIR/plasma-workspace/env/veyra-user-env.sh" <<'ENV'
+export VEYRA_VERSION="0.1.0"
+export VEYRA_CODENAME="Genesis"
+export VEYRA_NAME="Veyra Linux"
+ENV
+
+chmod +x "$CONFIG_DIR/plasma-workspace/env/veyra-user-env.sh"
+
+# Mark first boot as completed
+touch "$FIRSTBOOT_MARKER"
+
+# First-run Welcome
+if [ ! -f "$WELCOME_MARKER" ] &&
+   command -v veyra-welcome >/dev/null 2>&1
+then
     exec /usr/bin/veyra-welcome
 fi
 

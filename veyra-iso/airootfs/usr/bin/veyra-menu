@@ -1,36 +1,3 @@
 #!/bin/bash
 
-set -u
-
-while true; do
-    CHOICE=$(kdialog \
-        --title "Veyra" \
-        --menu "Veyra Linux" \
-        center "Veyra Center" \
-        settings "Veyra Settings" \
-        info "System Information" \
-        packages "Veyra Packages" \
-        update "Veyra Update" \
-        doctor "Veyra Doctor" \
-        disks "Disks" \
-        installer "Veyra Installer" \
-        about "About Veyra" \
-        terminal "Terminal" \
-        close "Close")
-
-    [ "$?" -eq 0 ] || exit 0
-
-    case "$CHOICE" in
-        center)    exec veyra-center ;;
-        settings)  exec veyra-settings ;;
-        info)      konsole -e veyra-info ;;
-        packages)  konsole -e vpm ;;
-        update)    konsole -e veyra-update ;;
-        doctor)    konsole -e veyra-doctor ;;
-        disks)     konsole -e veyra-disks ;;
-        installer) exec veyra-installer ;;
-        about)     konsole -e veyra-about ;;
-        terminal)  exec konsole ;;
-        close)     exit 0 ;;
-    esac
-done
+exec /usr/bin/veyra-center
