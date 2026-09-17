@@ -31,82 +31,35 @@ test -f /usr/lib/initcpio/install/archiso || fail "archiso install hook missing"
 ok "build tools and archiso hooks"
 
 echo
-echo "== VEYRA PROGRAMS =="
-
-PROGRAMS=(
-  veyra
-  veyra-center
-  veyra-menu
-  veyra-firstboot
-  veyra-settings
-  veyra-welcome
-  veyra-doctor
-  veyra-hardware
-  veyra-audio
-  veyra-print
-  veyra-power
-  veyra-firewall
-  veyra-installer
-  veyra-info
-  veyra-update
-  veyra-disks
-  veyra-about
-)
-
-for p in "${PROGRAMS[@]}"; do
-    f="$ISO/airootfs/usr/bin/$p"
-
-    test -f "$f" || fail "missing $p"
-    test -x "$f" || fail "$p is not executable"
-
-    case "$p" in
-        veyra-firstboot|veyra-settings|veyra-welcome|veyra-doctor|veyra-hardware|veyra-audio|veyra-print|veyra-power|veyra-firewall|veyra-installer|veyra-info|veyra-update|veyra-disks|veyra-about|veyra|veyra-center|veyra-menu)
-            bash -n "$f" || fail "syntax error: $p"
-            ;;
-    esac
-done
-
-test -f "$ISO/airootfs/usr/bin/vpm" || fail "vpm missing"
-test -x "$ISO/airootfs/usr/bin/vpm" || fail "vpm is not executable"
-
-ok "all Veyra programs"
-
-echo
 echo "== LIVE DESKTOP =="
 
-test -f "$ISO/airootfs/usr/bin/veyra-live-user-setup" \
-    || fail "live user setup missing"
+CUSTOMIZE="$ISO/airootfs/root/customize_airootfs.sh"
 
-test -x "$ISO/airootfs/usr/bin/veyra-live-user-setup" \
-    || fail "live user setup not executable"
+test -f "$CUSTOMIZE"     || fail "customize_airootfs.sh missing"
 
-bash -n "$ISO/airootfs/usr/bin/veyra-live-user-setup" \
-    || fail "live user setup syntax error"
+test -x "$CUSTOMIZE"     || fail "customize_airootfs.sh is not executable"
 
-test -f "$ISO/airootfs/etc/systemd/system/veyra-live-user.service" \
-    || fail "live user service missing"
+bash -n "$CUSTOMIZE"     || fail "customize_airootfs.sh syntax error"
 
-test -L "$ISO/airootfs/etc/systemd/system/multi-user.target.wants/veyra-live-user.service" \
-    || fail "live user service is not enabled"
+grep -q 'useradd' "$CUSTOMIZE"     || fail "live user creation missing"
 
-test -f "$ISO/airootfs/etc/sddm.conf.d/10-veyra.conf" \
-    || fail "SDDM config missing"
+grep -q 'veyra' "$CUSTOMIZE"     || fail "veyra user missing from customize script"
 
-grep -q '^User=veyra$' \
-    "$ISO/airootfs/etc/sddm.conf.d/10-veyra.conf" \
-    || fail "SDDM autologin user missing"
+test -f "$ISO/airootfs/etc/sddm.conf.d/10-veyra.conf"     || fail "SDDM config missing"
 
-grep -q '^Session=plasma.desktop$' \
-    "$ISO/airootfs/etc/sddm.conf.d/10-veyra.conf" \
-    || fail "Plasma session missing"
+grep -q '^User=veyra$'     "$ISO/airootfs/etc/sddm.conf.d/10-veyra.conf"     || fail "SDDM autologin user missing"
 
-test -f "$ISO/airootfs/etc/hostname" \
-    || fail "hostname missing"
+grep -q '^Session=plasma.desktop$'     "$ISO/airootfs/etc/sddm.conf.d/10-veyra.conf"     || fail "Plasma session missing"
 
-grep -qxF 'veyra' "$ISO/airootfs/etc/hostname" \
-    || fail "hostname is not veyra"
+test -f "$ISO/airootfs/etc/hostname"     || fail "hostname missing"
 
-ok "Live user and SDDM"
+grep -qxF 'veyra' "$ISO/airootfs/etc/hostname"     || fail "hostname is not veyra"
+
+if find "$ISO/airootfs/etc/systemd/system"     -name '*veyra-live-user*'     -print | grep -q .; then
+    fail "old live-user service still exists"
+fi
+
+ok "Live user build setup and SDDM"
 
 echo
 echo "== NETWORK/SERVICE CLEANUP =="
