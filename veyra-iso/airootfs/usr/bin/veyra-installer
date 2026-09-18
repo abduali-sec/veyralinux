@@ -559,6 +559,11 @@ install_packages() {
     echo "Installing Veyra system packages..."
     echo
 
+    # Veyra installer network reliability
+    if ! grep -qxF "DisableDownloadTimeout" /etc/pacman.conf; then
+        sed -i "/^\[options\]$/a DisableDownloadTimeout" /etc/pacman.conf
+    fi
+
     pacstrap -K "$TARGET_MOUNT" "${packages[@]}"
 }
 

@@ -33,3 +33,5 @@ veyra-iso/airootfs/usr/bin/vpm
 
 # Generated Veyra package repository workspace
 veyra-repo/
+build-work/
+veyra-site/

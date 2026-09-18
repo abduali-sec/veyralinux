@@ -53,7 +53,7 @@ ok "Veyra application icons"
 echo
 echo "== SDDM =="
 
-SDDM="$ISO/airootfs/usr/share/sddm/themes/breeze/theme.conf"
+SDDM="$ISO/airootfs/usr/share/veyra/branding/sddm/theme.conf"
 
 test -f "$SDDM" || fail "SDDM theme configuration missing"
 

@@ -123,13 +123,28 @@ grep -qxF 'mkinitcpio-archiso' "$ISO/packages.x86_64" \
 ok "ISO profile"
 
 echo
+echo "== Veyra executable permissions =="
+for f in     veyra     veyra-about     veyra-audio     veyra-center     veyra-disks     veyra-doctor     veyra-firewall     veyra-firstboot     veyra-hardware     veyra-info     veyra-installer     veyra-menu     veyra-power     veyra-print     veyra-settings     veyra-update     veyra-welcome
+do
+    test -x "$ROOT/veyra-iso/airootfs/usr/bin/$f"         || fail "Veyra command is not executable: $f"
+done
+
+if [ -e "$ROOT/veyra-iso/airootfs/usr/bin/vpm" ]; then
+    test -x "$ROOT/veyra-iso/airootfs/usr/bin/vpm"         || fail "vpm is not executable"
+fi
+
+ok "Veyra executable permissions"
+
 echo "== BUILD ARTIFACTS =="
 
 ARTIFACTS=$(find "$ROOT" -maxdepth 3 \
     \( -name '*.iso' -o -name '*.vdi' -o -name '*.img' -o -name '*.raw' \) \
     -not -path "$ISO/out/*" \
     -not -path "$ISO/work/*" \
+    -not -path "$ROOT/build-work" \
+    -not -path "$ROOT/build-work/*" \
     -not -path "$ROOT/veyra-test.vdi" \
+    -not -path "$ROOT/veyra-install-test-0.1.0.vdi" \
     -print)
 
 if [[ -n "$ARTIFACTS" ]]; then
